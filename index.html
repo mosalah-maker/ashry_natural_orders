@@ -6,7 +6,7 @@
   <title>Ashry Natural - نظام إدارة الطلبات</title>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     :root{--p:#1e3c72;--s:#2a5298;--d:#e74c3c;--g:#27ae60;--o:#f39c12;--l:#f8fbff}
     *{margin:0;padding:0;box-sizing:border-box;font-family:'Tajawal',sans-serif}
@@ -287,7 +287,6 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
   import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, increment, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-  import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js";
 
   const app = initializeApp({
     apiKey: "AIzaSyAuRBWr54OUPpH63rYX2GuX5UGMippYSkQ",
@@ -300,18 +299,19 @@
 
   const auth = getAuth(app);
   const db = getFirestore(app);
-  const storage = getStorage(app);
   let products = [], orders = [], cart = [];
-  let editingOrderId = null;
+
+  // ضع هنا API Key الخاص بيك من ImgBB بعد التسجيل في https://imgbb.com
+  const IMGBB_API_KEY = "6e0b6ad4c71f839987c098fe183beca5";
 
   window.showPage = function(s) {
-    document.querySelectorAll('.card, #invoice').forEach(c => c.style.display = 'none');
+    document.querySelectorAll('.card, #invoice').forEach(el => el.style.display = 'none');
     document.getElementById(s).style.display = 'block';
     document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
     document.querySelector(`[onclick="window.showPage('${s}')"]`)?.classList.add('active');
     if(s==='orders') loadOrders();
     if(s==='products') { loadProducts(); document.getElementById('searchProducts').value = ''; }
-    if(s==='add-order') { loadProductsForCart(); if(!editingOrderId){ cart=[]; renderCart(); document.getElementById('applyDiscount').checked=false; }}
+    if(s==='add-order') { loadProductsForCart(); cart=[]; renderCart(); document.getElementById('applyDiscount').checked=false; }
     if(s==='dashboard') updateDashboard();
   };
 
@@ -319,7 +319,7 @@
 
   document.getElementById('loginForm').onsubmit = e => {
     e.preventDefault();
-    signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('pass').value)
+    signInWithEmailAndPassword(auth, document.getElementById('email').value.trim(), document.getElementById('pass').value)
       .catch(err => alert("خطأ في الدخول: " + err.message));
   };
 
@@ -335,7 +335,8 @@
   async function loadProducts() {
     const snap = await getDocs(collection(db, "products"));
     products = snap.docs.map(d => ({id: d.id, ...d.data(), discount: d.data().discount || 0, imageUrl: d.data().imageUrl || ''}));
-    renderProducts(); loadProductsForCart();
+    renderProducts();
+    loadProductsForCart();
   }
 
   function renderProducts() {
@@ -355,7 +356,7 @@
           <button class="danger small" onclick="window.delP('${p.id}')">حذف</button>
         </td>
       </tr>`;
-    }).join('');
+    }).join('') || '<tr><td colspan="7" style="text-align:center;padding:50px;color:#999">لا توجد منتجات</td></tr>';
   }
 
   document.getElementById('pimage').onchange = e => {
@@ -371,23 +372,47 @@
     e.preventDefault();
     const id = document.getElementById('editProductId').value;
     let imageUrl = products.find(p => p.id === id)?.imageUrl || '';
+
     const file = document.getElementById('pimage').files[0];
-    if(file){
-      const storageRef = ref(storage, 'products/' + Date.now() + '_' + file.name);
-      await uploadBytes(storageRef, file);
-      imageUrl = await getDownloadURL(storageRef);
+    if (file) {
+      if (IMGBB_API_KEY.includes("كي_ImgBB")) {
+        alert("يرجى إضافة API Key صحيح من ImgBB أولاً!");
+        return;
+      }
+      document.getElementById('imagePreview').innerHTML = '<small style="color:#1976d2">جاري رفع الصورة...</small>';
+      const formData = new FormData();
+      formData.append('image', file);
+
+      try {
+        const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {method: 'POST', body: formData});
+        const result = await response.json();
+        if (result.success) imageUrl = result.data.url;
+        else { alert("فشل رفع الصورة"); return; }
+      } catch (err) {
+        alert("مشكلة في الاتصال بالإنترنت");
+        return;
+      }
     }
+
     const data = {
-      name: document.getElementById('pname').value,
+      name: document.getElementById('pname').value.trim(),
       stock: +document.getElementById('pstock').value,
       sellPrice: +document.getElementById('psell').value,
       discount: +document.getElementById('pdiscount').value || 0,
       imageUrl
     };
-    id ? await updateDoc(doc(db,"products",id), data) : await addDoc(collection(db,"products"), data);
-    alert(id ? "تم التعديل بنجاح" : "تم إضافة المنتج بنجاح");
-    e.target.reset(); document.getElementById('imagePreview').innerHTML = ''; document.getElementById('editProductId').value = '';
-    loadProducts();
+
+    try {
+      id ? await updateDoc(doc(db,"products",id), data) : await addDoc(collection(db,"products"), data);
+      alert(id ? "تم تعديل المنتج بنجاح ✓" : "تم إضافة المنتج بنجاح ✓");
+      e.target.reset();
+      document.getElementById('imagePreview').innerHTML = '';
+      document.getElementById('editProductId').value = '';
+      document.getElementById('productSubmitBtn').innerText = "إضافة منتج";
+      loadProducts();
+    } catch (err) {
+      alert("حصل خطأ: " + err.message);
+    }
   };
 
   window.editProduct = id => {
@@ -402,7 +427,7 @@
     window.showPage('products');
   };
 
-  window.delP = id => confirm("تأكيد حذف المنتج؟") && deleteDoc(doc(db,"products",id)).then(loadProducts);
+  window.delP = id => confirm("تأكيد حذف المنتج نهائي؟") && deleteDoc(doc(db,"products",id)).then(loadProducts);
 
   function loadProductsForCart() {
     const input = document.getElementById('prodSearch');
@@ -412,7 +437,7 @@
       select.innerHTML = '';
       products.filter(p => p.stock > 0 && p.name.toLowerCase().includes(term)).forEach(p => {
         const opt = new Option(`${p.name} - ${p.sellPrice} ج (متوفر: ${p.stock})`, p.id);
-        opt.dataset.price = p.sellPrice; opt.dataset.discount = p.discount; opt.dataset.image = p.imageUrl || '';
+        opt.dataset.image = p.imageUrl || '';
         select.add(opt);
       });
       select.style.display = select.options.length ? 'block' : 'none';
@@ -422,113 +447,70 @@
   }
 
   window.addToCart = () => {
-  const select = document.getElementById('prodSelect');
-  if (!select.value) return alert("اختر منتج أولاً");
-
-  const qty = +document.getElementById('qtyInput').value || 1;
-  const product = products.find(p => p.id === select.value);
-  if (!product) return;
-  if (product.stock < qty) return alert("الكمية المطلوبة غير متوفرة");
-
-  // نضيف المنتج بدون سعر نهائي → السعر هيتحدد حسب حالة الخصم لما نرسم السلة
-  cart.push({
-    id: product.id,
-    name: product.name,
-    qty: qty,
-    imageUrl: product.imageUrl || ''
-  });
-
-  renderCart(); // نعيد الرسم بالسعر الصحيح حسب الخصم
-
-  // نرجّع الحقول
-  document.getElementById('prodSearch').value = '';
-  document.getElementById('qtyInput').value = 1;
-  select.style.display = 'none';
-};
+    const select = document.getElementById('prodSelect');
+    if(!select.value) return alert("اختر منتج أولاً");
+    const qty = +document.getElementById('qtyInput').value || 1;
+    const product = products.find(p => p.id === select.value);
+    if(product.stock < qty) return alert("الكمية غير متوفرة");
+    cart.push({id: product.id, name: product.name, qty, imageUrl: product.imageUrl || ''});
+    renderCart();
+    document.getElementById('prodSearch').value = '';
+    document.getElementById('qtyInput').value = 1;
+    select.style.display = 'none';
+  };
 
   function renderCart() {
-  const useDiscount = document.getElementById('applyDiscount').checked;
-  let total = 0;
-  let html = '';
+    const useDiscount = document.getElementById('applyDiscount').checked;
+    let total = 0;
+    let html = cart.length === 0 ? '<p style="text-align:center;color:#999;margin:30px 0;font-size:18px;">السلة فارغة</p>' : '';
 
-  if (cart.length === 0) {
-    html = '<p style="text-align:center;color:#999;margin:30px 0;font-size:18px;">السلة فارغة</p>';
-  } else {
-    cart.forEach((item, index) => {
-      const product = products.find(p => p.id === item.id);
-      const price = useDiscount ? product.sellPrice * (1 - product.discount/100) : product.sellPrice;
+    cart.forEach((item, i) => {
+      const p = products.find(x => x.id === item.id);
+      const price = useDiscount ? p.sellPrice * (1 - p.discount/100) : p.sellPrice;
       total += price * item.qty;
-
       html += `
-        <div class="cart-item" id="cart-item-${index}">
-          ${item.imageUrl ? `<img src="${item.imageUrl}">` : ''}
-          <div><strong>${item.name}</strong> × ${item.qty}</div>
-          <div><strong>${(price * item.qty).toFixed(0)} ج</strong></div>
-          <button class="danger small" data-index="${index}">حذف</button>
+        <div class="cart-item" style="position:relative;padding:15px 15px 15px 80px;border:1px solid #eee;border-radius:12px;margin:12px 0;background:#fafafa;">
+          ${item.imageUrl ? `<img src="${item.imageUrl}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;position:absolute;left:10px;top:50%;transform:translateY(-50%);">` : '<div style="width:70px;height:70px;background:#eee;border-radius:8px;position:absolute;left:10px;top:50%;transform:translateY(-50%);"></div>'}
+          <div style="font-weight:bold;font-size:17px;">${item.name} × ${item.qty}</div>
+          ${useDiscount && p.discount > 0 ? `<small style="color:#e67e22;font-weight:bold;">خصم ${p.discount}%</small><br>` : ''}
+          <div style="font-size:19px;color:var(--p);margin-top:8px;"><strong>${(price * item.qty).toFixed(0)} جنيه</strong></div>
+          <button class="danger small" data-index="${i}" style="margin-top:10px;">حذف</button>
         </div>`;
+    });
+
+    document.getElementById('cartItems').innerHTML = html;
+    document.getElementById('cartTotal').innerHTML = `<strong style="font-size:24px;color:var(--p);">الإجمالي: ${total.toFixed(0)} جنيه مصري</strong>`;
+
+    document.querySelectorAll('#cartItems button[data-index]').forEach(btn => {
+      btn.onclick = () => { cart.splice(parseInt(btn.dataset.index), 1); renderCart(); };
     });
   }
 
-  document.getElementById('cartItems').innerHTML = html;
-  document.getElementById('cartTotal').innerHTML = `<strong style="font-size:22px;">الإجمالي: ${total.toFixed(0)} جنيه</strong>`;
-
-  // نضيف الحدث لكل زر حذف بعد الرسم
-  document.querySelectorAll('#cartItems button[data-index]').forEach(btn => {
-    btn.onclick = function() {
-      const idx = parseInt(this.getAttribute('data-index'));
-      cart.splice(idx, 1);
-      renderCart();
-    };
-  });
-}
-
-document.getElementById('applyDiscount').onchange = renderCart;
-  // رفع إكسيل (مختصر للتوفير)
-  document.getElementById('excel').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    document.getElementById('uploadStatus').innerHTML = '<span style="color:#1976d2">جاري القراءة...</span>';
-    const reader = new FileReader();
-    reader.onload = async function(ev) {
-      try {
-        const data = new Uint8Array(ev.target.result);
-        const workbook = XLSX.read(data, {type: 'array'});
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet);
-        let added = 0;
-        for (const row of rows) {
-          const name = (row["اسم المنتج"] || row["المنتج"] || "").toString().trim();
-          const stock = Number(row["الكمية"] || 0) || 0;
-          const sellPrice = Number(row["سعر البيع"] || row["السعر"] || 0) || 0;
-          const discount = Number(row["الخصم"] || 0) || 0;
-          if (name && sellPrice > 0) {
-            await addDoc(collection(db, "products"), {name, stock, sellPrice, discount, imageUrl: ""});
-            added++;
-          }
-        }
-        document.getElementById('uploadStatus').innerHTML = `<span style="color:green">تم إضافة ${added} منتج بنجاح!</span>`;
-        loadProducts();
-        e.target.value = '';
-      } catch (err) {
-        document.getElementById('uploadStatus').innerHTML = '<span style="color:red">فشل الرفع: ' + err.message + '</span>';
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  });
+  document.getElementById('applyDiscount').onchange = renderCart;
 
   window.saveOrder = async () => {
-    if(cart.length === 0) return alert("أضف منتجات للطلب");
+    if(cart.length === 0) return alert("أضف منتجات أولاً");
     let phone = document.getElementById('cphone').value.replace(/[^\d]/g, '');
     if(!phone.startsWith('01') || phone.length !== 11) return alert("رقم الواتساب لازم 11 رقم ويبدأ بـ 01");
     const fullPhone = '+2' + phone;
 
-    const totalAfter = cart.reduce((s,i) => s + i.price * i.qty, 0);
+    const useDiscount = document.getElementById('applyDiscount').checked;
+    const totalAfter = cart.reduce((s, i) => {
+      const p = products.find(x => x.id === i.id);
+      return s + (useDiscount ? p.sellPrice * (1 - p.discount/100) : p.sellPrice) * i.qty;
+    }, 0);
+
+    const orderItems = cart.map(i => {
+      const p = products.find(x => x.id === i.id);
+      const price = useDiscount ? p.sellPrice * (1 - p.discount/100) : p.sellPrice;
+      return { ...i, price: Number(price.toFixed(2)) };
+    });
 
     const orderData = {
       customerName: document.getElementById('cname').value.trim(),
       customerPhone: fullPhone,
       customerAddress: document.getElementById('caddr').value.trim(),
-      items: cart,
+      items: orderItems,
       totalPrice: totalAfter,
       orderStatus: document.getElementById('status').value,
       timestamp: serverTimestamp()
@@ -536,10 +518,8 @@ document.getElementById('applyDiscount').onchange = renderCart;
 
     try {
       await addDoc(collection(db,"orders"), orderData);
-      for(const item of cart){
-        await updateDoc(doc(db,"products",item.id), {stock: increment(-item.qty)});
-      }
-      alert("تم حفظ الطلب بنجاح!");
+      for(const item of cart) await updateDoc(doc(db,"products",item.id), {stock: increment(-item.qty)});
+      alert("تم حفظ الطلب بنجاح ✓");
       document.getElementById('customerForm').reset();
       cart = []; renderCart(); document.getElementById('applyDiscount').checked = false;
       loadOrders(); loadProducts();
@@ -554,11 +534,7 @@ document.getElementById('applyDiscount').onchange = renderCart;
 
   function renderOrders() {
     const term = (document.getElementById('searchOrders')?.value || '').toLowerCase();
-    const filtered = orders.filter(o => 
-      o.customerName.toLowerCase().includes(term) || 
-      o.customerPhone.includes(term) || 
-      o.items.some(i => i.name.toLowerCase().includes(term))
-    );
+    const filtered = orders.filter(o => o.customerName.toLowerCase().includes(term) || o.customerPhone.includes(term) || o.items.some(i => i.name.toLowerCase().includes(term)));
 
     document.getElementById('ordersList').innerHTML = filtered.map(o => {
       const items = o.items.map(i => `${i.name}×${i.qty}`).join('، ');
@@ -571,9 +547,7 @@ document.getElementById('applyDiscount').onchange = renderCart;
         <td><span class="badge ${o.orderStatus==='جديد'?'new':o.orderStatus==='تحت التجهيز'?'processing':'delivered'}">${o.orderStatus}</span></td>
         <td>${date}</td>
         <td class="action-btns">
-          <button class="print-btn small" onclick="window.printInvoice('${o.id}')">
-            <i class="fas fa-print"></i> طباعة
-          </button>
+          <button class="print-btn small" onclick="window.printInvoice('${o.id}')">طباعة</button>
           <button class="danger small" onclick="window.delOrder('${o.id}')">حذف</button>
         </td>
       </tr>`;
@@ -581,11 +555,8 @@ document.getElementById('applyDiscount').onchange = renderCart;
   }
 
   window.delOrder = id => confirm("تأكيد حذف الطلب؟") && deleteDoc(doc(db,'orders',id)).then(loadOrders);
-  window.deleteAllOrders = () => confirm("حذف جميع الطلبات نهائي؟") && getDocs(collection(db,"orders")).then(snap => { const batch = writeBatch(db); snap.docs.forEach(d => batch.delete(d.ref)); return batch.commit(); }).then(loadOrders);
-  window.deleteAllProducts = () => confirm("حذف جميع المنتجات نهائي؟") && getDocs(collection(db,"products")).then(snap => { const batch = writeBatch(db); snap.docs.forEach(d => batch.delete(d.ref)); return batch.commit(); }).then(loadProducts);
-
-  window.exportOrdersToExcel = () => { /* موجود في الكود الأصلي */ };
-  window.exportProductsToExcel = () => { /* موجود في الكود الأصلي */ };
+  window.deleteAllOrders = () => confirm("حذف كل الطلبات نهائي؟") && getDocs(collection(db,"orders")).then(s => { const batch = writeBatch(db); s.docs.forEach(d => batch.delete(d.ref)); batch.commit(); }).then(loadOrders);
+  window.deleteAllProducts = () => confirm("حذف كل المنتجات نهائي؟") && getDocs(collection(db,"products")).then(s => { const batch = writeBatch(db); s.docs.forEach(d => batch.delete(d.ref)); batch.commit(); }).then(loadProducts);
 
   function updateDashboard() {
     const today = new Date().toDateString();
@@ -598,43 +569,62 @@ document.getElementById('applyDiscount').onchange = renderCart;
     document.getElementById('totalSales').innerText = sales.toLocaleString() + ' جنيه';
   }
 
-  // ============= طباعة الفاتورة - الطريقة النهائية المضمونة 100% =============
+  window.exportProductsToExcel = () => {
+    const data = products.map(p => ({
+      "اسم المنتج": p.name,
+      "الكمية": p.stock,
+      "سعر البيع": p.sellPrice,
+      "الخصم %": p.discount || 0,
+      "السعر بعد الخصم": (p.sellPrice * (1 - (p.discount || 0)/100)).toFixed(0)
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "المنتجات");
+    XLSX.writeFile(wb, "AshryNatural_المنتجات_" + new Date().toISOString().slice(0,10) + ".xlsx");
+  };
+
+  window.exportOrdersToExcel = () => {
+    const data = orders.map(o => ({
+      "اسم العميل": o.customerName,
+      "رقم الواتساب": o.customerPhone,
+      "العنوان": o.customerAddress || "غير محدد",
+      "المنتجات": o.items.map(i => `${i.name} × ${i.qty}`).join(" | "),
+      "الإجمالي": o.totalPrice,
+      "الحالة": o.orderStatus,
+      "التاريخ": o.timestamp?.toDate?.()?.toLocaleString('ar-EG') || ""
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
+    XLSX.writeFile(wb, "AshryNatural_الطلبات_" + new Date().toISOString().slice(0,10) + ".xlsx");
+  };
+
   window.printInvoice = function(orderId) {
     const order = orders.find(o => o.id === orderId);
     if (!order) return alert("الطلب غير موجود");
 
-    // ملء البيانات
     document.getElementById('inv_name').textContent = order.customerName;
     document.getElementById('inv_phone').textContent = order.customerPhone;
     document.getElementById('inv_addr').textContent = order.customerAddress || "غير محدد";
     document.getElementById('inv_date').textContent = new Date().toLocaleString('ar-EG');
     document.getElementById('inv_total').textContent = Number(order.totalPrice).toLocaleString();
 
-    const itemsHTML = order.items.map(item => `
+    document.getElementById('inv_items').innerHTML = order.items.map(item => `
       <tr>
-        <td style="padding:12px 0; font-weight:bold;">${item.name}</td>
-        <td style="padding:12px 0;">${item.qty}</td>
-        <td style="padding:12px 0;">${Number(item.price).toFixed(0)} ج.م</td>
-        <td style="padding:12px 0;">${(item.price * item.qty).toFixed(0)} ج.م</td>
+        <td style="padding:12px;font-weight:bold;">${item.name}</td>
+        <td style="padding:12px;">${item.qty}</td>
+        <td style="padding:12px;">${Number(item.price || 0).toFixed(0)} ج.م</td>
+        <td style="padding:12px;">${(Number(item.price || 0) * item.qty).toFixed(0)} ج.م</td>
       </tr>
     `).join('');
 
-    document.getElementById('inv_items').innerHTML = itemsHTML;
-
-    // إخفاء كل شيء وعرض الفاتورة فقط
-    document.querySelectorAll('.card').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.card').forEach(c => c.style.display = 'none');
     document.querySelector('.sidebar').style.display = 'none';
     document.getElementById('menuBtn').style.display = 'none';
     document.body.style.background = 'white';
     document.getElementById('invoice').style.display = 'block';
 
-    // الطباعة بعد تأخير كافي + رجوع تلقائي
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => {
-        location.reload(); // أضمن طريقة على الموبايل والكمبيوتر
-      }, 800);
-    }, 1200);
+    setTimeout(() => { window.print(); setTimeout(() => location.reload(), 1000); }, 1200);
   };
 
 </script>
