@@ -479,7 +479,7 @@
     });
 
     document.getElementById('cartItems').innerHTML = html;
-    document.getElementById('cartTotal').innerHTML = `<strong style="font-size:24px;color:var(--p);">الإجمالي: ${total.toFixed(0)} جنيه مصري</strong>`;
+    document.getElementById('cartTotal').innerHTML = `<strong style="font-size:26px;color:#ffffff !important;text-shadow: 0 1px 3px rgba(0,0,0,0.5);">الإجمالي: ${total.toFixed(0)} جنيه مصري</strong>`;
 
     document.querySelectorAll('#cartItems button[data-index]').forEach(btn => {
       btn.onclick = () => { cart.splice(parseInt(btn.dataset.index), 1); renderCart(); };
