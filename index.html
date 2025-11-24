@@ -42,7 +42,7 @@
     .cart-item{background:#f9f9f9;padding:15px;border-radius:12px;margin:10px 0;display:flex;align-items:center;flex-wrap:wrap;gap:15px;position:relative;padding-right:80px}
     .cart-item img{width:70px;height:70px;object-fit:cover;border-radius:8px;position:absolute;right:10px;top:50%;transform:translateY(-50%)}
     .cart-total{background:var(--p);color:#fff;padding:20px;border-radius:12px;text-align:center;font-size:26px;margin:20px 0;box-shadow:0 4px 12px rgba(0,0,0,0.2)}
-    .discount-toggle{margin:20px 0;display:flex;align-items:center;gap:15px;font-size:18px;background:#fff8e1;padding:15px;border-radius:12px;flex-wrap:wrap}
+    .discount-toggle{margin:20px 0;display:flex;align-items:center;gap:15px;font-size:18px;background:#fff8e1;padding:15px;border-radius:12px;flex-wrap:wrap  }
     .switch{position:relative;display:inline-block;width:70px;height:34px}
     .switch input{opacity:0;width:0;height:0}
     .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;transition:.4s;border-radius:34px}
@@ -85,25 +85,14 @@
       @page { margin: 1cm; }
       body * { visibility: hidden !important; }
       #invoice, #invoice * { visibility: visible !important; }
-      #invoice {
-        position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important;
-        padding: 20px !important; background: white !important; color: black !important;
-      }
-      .invoice-table, .invoice-table th, .invoice-table td {
-        border: 1px solid black !important; border-collapse: collapse !important;
-      }
-      .invoice-table th {
-        background: #1e3c72 !important; color: white !important;
-        -webkit-print-color-adjust: exact !important; color-adjust: exact !important;
-      }
-      .invoice-total {
-        background: linear-gradient(135deg, #f8fbff, #e3f2fd) !important;
-        -webkit-print-color-adjust: exact !important; color-adjust: exact !important;
-      }
+      #invoice {position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important;}
+      .invoice-table, .invoice-table th, .invoice-table td {border: 1px solid black !important;}
+      .invoice-table th {background: #1e3c72 !important; color: white !important;}
     }
   </style>
 </head>
 <body>
+
 <button id="menuBtn" onclick="document.querySelector('.sidebar').classList.toggle('active')">
   <i class="fas fa-bars"></i>
 </button>
@@ -118,6 +107,7 @@
 </div>
 
 <div class="main">
+
   <div id="invoice">
     <div class="invoice-header">
       <h1>Ashry Natural</h1>
@@ -244,6 +234,7 @@
       <tbody id="productsList"></tbody>
     </table>
   </div>
+
 </div>
 
 <script type="module">
@@ -267,7 +258,7 @@
   let products = [], orders = [], cart = [];
 
   window.showPage = function(s) {
-    document.querySelectorAll('.card, #invoice').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.card:not(#login), #invoice').forEach(el => el.style.display = 'none');
     document.getElementById(s).style.display = 'block';
     document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
     document.querySelector(`[onclick="window.showPage('${s}')"]`)?.classList.add('active');
@@ -277,21 +268,45 @@
     if(s==='dashboard') updateDashboard();
   };
 
-  window.logout = () => signOut(auth);
+  window.logout = () => {
+    if(confirm("تسجيل الخروج؟")) signOut(auth);
+  };
+
+  function hideEverythingExceptLogin() {
+    document.querySelectorAll('.card, #invoice, .sidebar, #menuBtn').forEach(el => {
+      if (el.id !== 'login') el.style.display = 'none';
+    });
+    document.getElementById('login').style.display = 'block';
+  }
 
   document.getElementById('loginForm').onsubmit = e => {
     e.preventDefault();
-    signInWithEmailAndPassword(auth, document.getElementById('email').value.trim(), document.getElementById('pass').value)
-      .catch(err => alert("خطأ في الدخول: " + err.message));
+    const email = document.getElementById('email').value.trim();
+    const pass = document.getElementById('pass').value;
+
+    signInWithEmailAndPassword(auth, email, pass)
+      .then(() => {})
+      .catch(err => {
+        let msg = "خطأ في الدخول";
+        if (err.code === 'auth/user-not-found') msg = "الإيميل غير موجود";
+        else if (err.code === 'auth/wrong-password') msg = "كلمة المرور غلط";
+        else if (err.code === 'auth/invalid-email') msg = "الإيميل غير صحيح";
+        alert(msg);
+      });
   };
 
   onAuthStateChanged(auth, user => {
-    if(user){
+    if (user) {
+      document.getElementById('login').style.display = 'none';
+      document.querySelector('.sidebar').style.display = 'block';
+      document.getElementById('menuBtn').style.display = window.innerWidth <= 992 ? 'block' : 'none';
       window.showPage('dashboard');
       setInterval(() => document.getElementById('currentTime').innerText = new Date().toLocaleString('ar-EG'), 1000);
       loadProducts();
       loadOrders();
-    } else window.showPage('login');
+    } else {
+      hideEverythingExceptLogin();
+    }
   });
 
   async function loadProducts() {
@@ -351,82 +366,62 @@
   };
 
   function renderCart() {
-  const useDiscount = document.getElementById('applyDiscount').checked;
-  let total = 0;
-  let html = '';
-
-  if (cart.length === 0) {
-    html = '<p style="text-align:center;color:#999;margin:50px 0;font-size:18px;">السلة فارغة، ابدأ بإضافة منتجات</p>';
-  } else {
-    cart.forEach((item, index) => {
-      const p = products.find(x => x.id === item.id);
-      if (!p) return;
-
-      const price = useDiscount ? p.sellPrice * (1 - p.discount/100) : p.sellPrice;
-      total += price * item.qty;
-
-      html += `
-        <div class="cart-item" style="position:relative;padding-left:60px;padding-right:15px;min-height:90px;">
-          <!-- زر الحذف في أقصى الشمال (مش بيغطي حاجة) -->
-          <button onclick="removeFromCart(${index})" 
-                  style="position:absolute;left:10px;top:50%;transform:translateY(-50%);
-                         background:#e74c3c;color:white;width:40px;height:40px;
-                         border:none;border-radius:50%;cursor:pointer;font-size:16px;
-                         box-shadow:0 2px 10px rgba(231,76,60,0.3);z-index:10;">
-            <i class="fas fa-trash"></i>
-          </button>
-
-          <!-- صورة المنتج -->
-          ${item.imageUrl ? 
-            `<img src="${item.imageUrl}" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;object-fit:cover;border-radius:8px;">` 
-            : '<div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;background:#eee;border-radius:8px;"></div>'}
-
-          <!-- تفاصيل المنتج -->
-          <div style="padding:15px 80px 15px 10px;">
-            <div style="font-weight:bold;font-size:18px;margin-bottom:8px;">${item.name}</div>
-            <div style="color:#555;margin-bottom:8px;">الكمية: <strong>${item.qty}</strong></div>
-            ${useDiscount && p.discount > 0 ? 
-              `<div style="color:#e67e22;font-weight:bold;font-size:14px;">✓ تم تطبيق خصم ${p.discount}%</div>` : ''}
-            <div style="font-size:20px;color:#1e3c72;margin-top:10px;font-weight:bold;">
-              ${(price * item.qty).toFixed(0)} جنيه
+    const useDiscount = document.getElementById('applyDiscount').checked;
+    let total = 0;
+    let html = '';
+    if (cart.length === 0) {
+      html = '<p style="text-align:center;color:#999;margin:50px 0;font-size:18px;">السلة فارغة، ابدأ بإضافة منتجات</p>';
+    } else {
+      cart.forEach((item, index) => {
+        const p = products.find(x => x.id === item.id);
+        if (!p) return;
+        const price = useDiscount ? p.sellPrice * (1 - p.discount/100) : p.sellPrice;
+        total += price * item.qty;
+        html += `
+          <div class="cart-item" style="position:relative;padding-left:60px;padding-right:15px;min-height:90px;">
+            <button onclick="removeFromCart(${index})"
+                    style="position:absolute;left:10px;top:50%;transform:translateY(-50%);
+                           background:#e74c3c;color:white;width:40px;height:40px;
+                           border:none;border-radius:50%;cursor:pointer;font-size:16px;
+                           box-shadow:0 2px 10px rgba(231,76,60,0.3);z-index:10;">
+              <i class="fas fa-trash"></i>
+            </button>
+            ${item.imageUrl ?
+              `<img src="${item.imageUrl}" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;object-fit:cover;border-radius:8px;">`
+              : '<div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;background:#eee;border-radius:8px;"></div>'}
+            <div style="padding:15px 80px 15px 10px;">
+              <div style="font-weight:bold;font-size:18px;margin-bottom:8px;">${item.name}</div>
+              <div style="color:#555;margin-bottom:8px;">الكمية: <strong>${item.qty}</strong></div>
+              ${useDiscount && p.discount > 0 ? `<div style="color:#e67e22;font-weight:bold;font-size:14px;">تم تطبيق خصم ${p.discount}%</div>` : ''}
+              <div style="font-size:20px;color:#1e3c72;margin-top:10px;font-weight:bold;">
+                ${(price * item.qty).toFixed(0)} جنيه
+              </div>
             </div>
-          </div>
-        </div>`;
-    });
-  }
-
-  document.getElementById('cartItems').innerHTML = html;
-
-  document.getElementById('cartTotal').innerHTML = `
-    <div style="background:linear-gradient(135deg,#1e3c72,#2a5298);color:white;padding:25px;border-radius:16px;text-align:center;font-size:28px;font-weight:900;box-shadow:0 8px 25px rgba(30,60,114,0.3);margin:20px 0;">
-      الإجمالي: ${total.toFixed(0)} جنيه مصري
-    </div>`;
-    // دالة حذف من السلة - مضمونة 100%
-window.removeFromCart = function(index) {
-  if (confirm("هل تريد حذف هذا المنتج من السلة؟")) {
-    cart.splice(index, 1);
-    renderCart();
-  }
-};
-}
+          </div>`;
+      });
+    }
     document.getElementById('cartItems').innerHTML = html;
     document.getElementById('cartTotal').innerHTML = `
-      <div style="background:#1e3a8a;padding:20px;border-radius:12px;color:#ffffff;font-size:26px;font-weight:bold;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.2)">
+      <div style="background:linear-gradient(135deg,#1e3c72,#2a5298);color:white;padding:25px;border-radius:16px;text-align:center;font-size:28px;font-weight:900;box-shadow:0 8px 25px rgba(30,60,114,0.3);margin:20px 0;">
         الإجمالي: ${total.toFixed(0)} جنيه مصري
       </div>`;
-  
+  }
+
+  window.removeFromCart = function(index) {
+    if (confirm("هل تريد حذف هذا المنتج من السلة؟")) {
+      cart.splice(index, 1);
+      renderCart();
+    }
+  };
 
   window.saveOrder = async () => {
     if (cart.length === 0) return alert("أضف منتجات أولاً");
-
     let phone = document.getElementById('cphone').value.replace(/[^\d]/g, '');
     if (!phone.startsWith('01') || phone.length !== 11) return alert("رقم الواتساب لازم 11 رقم يبدأ بـ 01");
-
     const fullPhone = '2' + phone;
     const customerName = document.getElementById('cname').value.trim();
     const address = document.getElementById('caddr').value.trim();
     const useDiscount = document.getElementById('applyDiscount').checked;
-
     let totalAfter = 0;
     const itemsText = cart.map(i => {
       const p = products.find(x => x.id === i.id);
@@ -434,13 +429,11 @@ window.removeFromCart = function(index) {
       totalAfter += price * i.qty;
       return `• ${i.name} × ${i.qty} = ${price.toFixed(0)} جنيه`;
     }).join('%0A');
-
     const saveBtn = document.getElementById('saveOrderBtn');
     const loading = document.getElementById('orderLoading');
     saveBtn.disabled = true;
     loading.style.display = 'block';
     saveBtn.innerText = "جاري الحفظ والإرسال...";
-
     try {
       await addDoc(collection(db, "orders"), {
         customerName,
@@ -454,30 +447,22 @@ window.removeFromCart = function(index) {
         orderStatus: document.getElementById('status').value,
         timestamp: serverTimestamp()
       });
-
       for (const i of cart) {
         await updateDoc(doc(db, "products", i.id), { stock: increment(-i.qty) });
       }
-
       const message = encodeURIComponent(
 `*طلب جديد من Ashry Natural*
-
 الاسم: ${customerName}
 رقم الواتساب: 0${phone}
 العنوان: ${address}
-
 المنتجات:
 ${itemsText.replace(/%0A/g, '\n')}
-
 *الإجمالي: ${totalAfter.toFixed(0)} جنيه*
-
 شكراً لثقتك فينا
 *Ashry Natural - صحتك تهمنا*`
       );
-
       const whatsappUrl = `https://wa.me/${fullPhone}?text=${message}`;
       const waWindow = window.open(whatsappUrl, '_blank');
-
       if (!waWindow || waWindow.closed || typeof waWindow.closed === 'undefined') {
         setTimeout(() => {
           if (confirm("المتصفح منع فتح واتساب تلقائيًا\nاضغط موافق لفتحه يدويًا")) {
@@ -485,13 +470,11 @@ ${itemsText.replace(/%0A/g, '\n')}
           }
         }, 500);
       }
-
       alert("تم حفظ الطلب وفتح واتساب بنجاح!");
       document.getElementById('customerForm').reset();
       cart = []; renderCart();
       document.getElementById('applyDiscount').checked = false;
       loadOrders(); loadProducts();
-
     } catch (err) {
       console.error(err);
       alert("فشل الحفظ: " + err.message);
@@ -640,18 +623,15 @@ ${itemsText.replace(/%0A/g, '\n')}
     const loading = document.getElementById('productLoading');
     submitBtn.disabled = true;
     loading.style.display = 'block';
-
     const id = document.getElementById('editProductId').value;
     let imageUrl = products.find(p => p.id === id)?.imageUrl || '';
     const file = document.getElementById('pimage').files[0];
-
     if (file && file.size > 3*1024*1024) {
       alert("حجم الصورة كبير جدًا! اختر صورة أقل من 3 ميجا");
       submitBtn.disabled = false;
       loading.style.display = 'none';
       return;
     }
-
     if (file) {
       const formData = new FormData();
       formData.append('image', file);
@@ -662,7 +642,6 @@ ${itemsText.replace(/%0A/g, '\n')}
         else { alert("فشل رفع الصورة"); submitBtn.disabled = false; loading.style.display = 'none'; return; }
       } catch { alert("مشكلة في رفع الصورة"); submitBtn.disabled = false; loading.style.display = 'none'; return; }
     }
-
     const data = {
       name: document.getElementById('pname').value.trim(),
       stock: +document.getElementById('pstock').value,
@@ -670,7 +649,6 @@ ${itemsText.replace(/%0A/g, '\n')}
       discount: +document.getElementById('pdiscount').value || 0,
       imageUrl
     };
-
     try {
       id ? await updateDoc(doc(db,"products",id), data) : await addDoc(collection(db,"products"), data);
       alert(id ? "تم التعديل بنجاح" : "تم إضافة المنتج بنجاح");
@@ -695,5 +673,6 @@ ${itemsText.replace(/%0A/g, '\n')}
     }
   };
 </script>
+
 </body>
 </html>
