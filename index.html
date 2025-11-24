@@ -187,6 +187,43 @@
     <div id="orderLoading" class="loading">جاري الحفظ والإرسال...</div>
   </div>
 
+  <div id="edit-order" class="card" style="display:none">
+    <h2>تعديل الطلب</h2>
+    <form id="editCustomerForm">
+      <input type="hidden" id="editOrderId">
+      <input type="text" placeholder="اسم العميل" id="editCname" required>
+      <input type="tel" placeholder="رقم الواتساب (مثلاً: 01029149379)" id="editCphone" required>
+      <input type="text" placeholder="العنوان كامل" id="editCaddr" required>
+      <select id="editStatus">
+        <option value="جديد">جديد</option>
+        <option value="تحت التجهيز">تحت التجهيز</option>
+        <option value="تم التوصيل">تم التوصيل</option>
+      </select>
+    </form>
+    <div class="discount-toggle">
+      <label class="switch">
+        <input type="checkbox" id="editApplyDiscount" onchange="renderEditCart()">
+        <span class="slider"></span>
+      </label>
+      <span>تفعيل الخصم على كل المنتجات في هذا الطلب</span>
+    </div>
+    <hr style="margin:30px 0">
+    <h3>إضافة منتجات</h3>
+    <div style="display:grid;grid-template-columns:1fr 120px auto;gap:15px;align-items:end">
+      <div class="searchable-select">
+        <input type="text" id="editProdSearch" placeholder="اكتب اسم المنتج..." autocomplete="off">
+        <i class="fas fa-search"></i>
+        <select id="editProdSelect" size="8" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:99;background:#fff;border:1px solid #ddd;border-radius:12px;max-height:300px;overflow-y:auto"></select>
+      </div>
+      <input type="number" id="editQtyInput" value="1" min="1">
+      <button type="button" onclick="window.addToEditCart()" class="success">إضافة</button>
+    </div>
+    <div id="editCartItems" style="margin:20px 0"></div>
+    <div class="cart-total" id="editCartTotal">الإجمالي: 0 جنيه</div>
+    <button onclick="window.updateOrder()" id="updateOrderBtn" style="margin-top:20px;padding:18px;font-size:18px">تحديث الطلب</button>
+    <div id="editOrderLoading" class="loading">جاري تحديث الطلب...</div>
+  </div>
+
   <div id="orders" class="card" style="display:none">
     <h2>جميع الطلبات</h2>
     <div style="margin:20px 0">
@@ -255,7 +292,7 @@
   const db = getFirestore(app);
   const IMGBB_API_KEY = "6e0b6ad4c71f839987c098fe183beca5";
 
-  let products = [], orders = [], cart = [];
+  let products = [], orders = [], cart = [], editCart = [];
 
   window.showPage = function(s) {
     document.querySelectorAll('.card:not(#login), #invoice').forEach(el => el.style.display = 'none');
@@ -314,6 +351,7 @@
     products = snap.docs.map(d => ({id: d.id, ...d.data(), discount: d.data().discount || 0, imageUrl: d.data().imageUrl || ''}));
     renderProducts();
     loadProductsForCart();
+    loadProductsForEditCart();
   }
 
   function renderProducts() {
@@ -352,16 +390,76 @@
     select.onchange = () => { input.value = select.selectedOptions[0].text.split(' - ')[0]; select.style.display = 'none'; };
   }
 
+  function loadProductsForEditCart() {
+    const input = document.getElementById('editProdSearch');
+    const select = document.getElementById('editProdSelect');
+    input.oninput = () => {
+      const term = input.value.toLowerCase();
+      select.innerHTML = '';
+      products.filter(p => p.name.toLowerCase().includes(term)).forEach(p => {
+        const opt = new Option(`${p.name} - ${p.sellPrice} ج (متوفر: ${p.stock})`, p.id);
+        select.add(opt);
+      });
+      select.style.display = select.options.length ? 'block' : 'none';
+    };
+    input.onclick = () => input.oninput();
+    select.onchange = () => { input.value = select.selectedOptions[0].text.split(' - ')[0]; select.style.display = 'none'; };
+  }
+
   window.addToCart = () => {
     const select = document.getElementById('prodSelect');
     if(!select.value) return alert("اختر منتج");
     const qty = +document.getElementById('qtyInput').value || 1;
     const p = products.find(x => x.id === select.value);
     if(p.stock < qty) return alert("الكمية غير متوفرة");
-    cart.push({id: p.id, name: p.name, qty, imageUrl: p.imageUrl || ''});
+    
+    // التحقق إذا كان المنتج موجود بالفعل في السلة
+    const existingItemIndex = cart.findIndex(item => item.id === p.id);
+    if (existingItemIndex > -1) {
+      // إذا كان موجود، نزيد الكمية فقط
+      cart[existingItemIndex].qty += qty;
+    } else {
+      // إذا لم يكن موجود، نضيفه جديد
+      cart.push({
+        id: p.id, 
+        name: p.name, 
+        qty: qty, 
+        imageUrl: p.imageUrl || '',
+        originalPrice: p.sellPrice
+      });
+    }
+    
     renderCart();
     document.getElementById('prodSearch').value = '';
     document.getElementById('qtyInput').value = 1;
+    select.style.display = 'none';
+  };
+
+  window.addToEditCart = () => {
+    const select = document.getElementById('editProdSelect');
+    if(!select.value) return alert("اختر منتج");
+    const qty = +document.getElementById('editQtyInput').value || 1;
+    const p = products.find(x => x.id === select.value);
+    
+    // التحقق إذا كان المنتج موجود بالفعل في السلة
+    const existingItemIndex = editCart.findIndex(item => item.id === p.id);
+    if (existingItemIndex > -1) {
+      // إذا كان موجود، نزيد الكمية فقط
+      editCart[existingItemIndex].qty += qty;
+    } else {
+      // إذا لم يكن موجود، نضيفه جديد
+      editCart.push({
+        id: p.id, 
+        name: p.name, 
+        qty: qty, 
+        imageUrl: p.imageUrl || '',
+        originalPrice: p.sellPrice // حفظ السعر الأصلي
+      });
+    }
+    
+    renderEditCart();
+    document.getElementById('editProdSearch').value = '';
+    document.getElementById('editQtyInput').value = 1;
     select.style.display = 'none';
   };
 
@@ -369,14 +467,24 @@
     const useDiscount = document.getElementById('applyDiscount').checked;
     let total = 0;
     let html = '';
+    
     if (cart.length === 0) {
       html = '<p style="text-align:center;color:#999;margin:50px 0;font-size:18px;">السلة فارغة، ابدأ بإضافة منتجات</p>';
     } else {
       cart.forEach((item, index) => {
         const p = products.find(x => x.id === item.id);
         if (!p) return;
-        const price = useDiscount ? p.sellPrice * (1 - p.discount/100) : p.sellPrice;
-        total += price * item.qty;
+        
+        let price;
+        if (useDiscount) {
+          price = p.sellPrice * (1 - p.discount/100);
+        } else {
+          price = item.originalPrice || p.sellPrice;
+        }
+        
+        const itemTotal = price * item.qty;
+        total += itemTotal;
+        
         html += `
           <div class="cart-item" style="position:relative;padding-left:60px;padding-right:15px;min-height:90px;">
             <button onclick="removeFromCart(${index})"
@@ -392,16 +500,72 @@
             <div style="padding:15px 80px 15px 10px;">
               <div style="font-weight:bold;font-size:18px;margin-bottom:8px;">${item.name}</div>
               <div style="color:#555;margin-bottom:8px;">الكمية: <strong>${item.qty}</strong></div>
+              <div style="color:#666;margin-bottom:4px;font-size:14px;">سعر الوحدة: ${price.toFixed(0)} ج</div>
               ${useDiscount && p.discount > 0 ? `<div style="color:#e67e22;font-weight:bold;font-size:14px;">تم تطبيق خصم ${p.discount}%</div>` : ''}
               <div style="font-size:20px;color:#1e3c72;margin-top:10px;font-weight:bold;">
-                ${(price * item.qty).toFixed(0)} جنيه
+                ${itemTotal.toFixed(0)} جنيه
               </div>
             </div>
           </div>`;
       });
     }
+    
     document.getElementById('cartItems').innerHTML = html;
     document.getElementById('cartTotal').innerHTML = `
+      <div style="background:linear-gradient(135deg,#1e3c72,#2a5298);color:white;padding:25px;border-radius:16px;text-align:center;font-size:28px;font-weight:900;box-shadow:0 8px 25px rgba(30,60,114,0.3);margin:20px 0;">
+        الإجمالي: ${total.toFixed(0)} جنيه مصري
+      </div>`;
+  }
+
+  function renderEditCart() {
+    const useDiscount = document.getElementById('editApplyDiscount').checked;
+    let total = 0;
+    let html = '';
+    
+    if (editCart.length === 0) {
+      html = '<p style="text-align:center;color:#999;margin:50px 0;font-size:18px;">السلة فارغة، ابدأ بإضافة منتجات</p>';
+    } else {
+      editCart.forEach((item, index) => {
+        const p = products.find(x => x.id === item.id);
+        if (!p) return;
+        
+        let price;
+        if (useDiscount) {
+          price = p.sellPrice * (1 - p.discount/100);
+        } else {
+          price = item.originalPrice || p.sellPrice;
+        }
+        
+        const itemTotal = price * item.qty;
+        total += itemTotal;
+        
+        html += `
+          <div class="cart-item" style="position:relative;padding-left:60px;padding-right:15px;min-height:90px;">
+            <button onclick="removeFromEditCart(${index})"
+                    style="position:absolute;left:10px;top:50%;transform:translateY(-50%);
+                           background:#e74c3c;color:white;width:40px;height:40px;
+                           border:none;border-radius:50%;cursor:pointer;font-size:16px;
+                           box-shadow:0 2px 10px rgba(231,76,60,0.3);z-index:10;">
+              <i class="fas fa-trash"></i>
+            </button>
+            ${item.imageUrl ?
+              `<img src="${item.imageUrl}" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;object-fit:cover;border-radius:8px;">`
+              : '<div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;background:#eee;border-radius:8px;"></div>'}
+            <div style="padding:15px 80px 15px 10px;">
+              <div style="font-weight:bold;font-size:18px;margin-bottom:8px;">${item.name}</div>
+              <div style="color:#555;margin-bottom:8px;">الكمية: <strong>${item.qty}</strong></div>
+              <div style="color:#666;margin-bottom:4px;font-size:14px;">سعر الوحدة: ${price.toFixed(0)} ج</div>
+              ${useDiscount && p.discount > 0 ? `<div style="color:#e67e22;font-weight:bold;font-size:14px;">تم تطبيق خصم ${p.discount}%</div>` : ''}
+              <div style="font-size:20px;color:#1e3c72;margin-top:10px;font-weight:bold;">
+                ${itemTotal.toFixed(0)} جنيه
+              </div>
+            </div>
+          </div>`;
+      });
+    }
+    
+    document.getElementById('editCartItems').innerHTML = html;
+    document.getElementById('editCartTotal').innerHTML = `
       <div style="background:linear-gradient(135deg,#1e3c72,#2a5298);color:white;padding:25px;border-radius:16px;text-align:center;font-size:28px;font-weight:900;box-shadow:0 8px 25px rgba(30,60,114,0.3);margin:20px 0;">
         الإجمالي: ${total.toFixed(0)} جنيه مصري
       </div>`;
@@ -414,6 +578,13 @@
     }
   };
 
+  window.removeFromEditCart = function(index) {
+    if (confirm("هل تريد حذف هذا المنتج من السلة؟")) {
+      editCart.splice(index, 1);
+      renderEditCart();
+    }
+  };
+
   window.saveOrder = async () => {
     if (cart.length === 0) return alert("أضف منتجات أولاً");
     let phone = document.getElementById('cphone').value.replace(/[^\d]/g, '');
@@ -423,12 +594,19 @@
     const address = document.getElementById('caddr').value.trim();
     const useDiscount = document.getElementById('applyDiscount').checked;
     let totalAfter = 0;
-    const itemsText = cart.map(i => {
+    
+    const itemsWithPrice = cart.map(i => {
       const p = products.find(x => x.id === i.id);
       const price = useDiscount ? p.sellPrice * (1 - p.discount/100) : p.sellPrice;
       totalAfter += price * i.qty;
-      return `• ${i.name} × ${i.qty} = ${price.toFixed(0)} جنيه`;
-    }).join('%0A');
+      return {
+        ...i,
+        price: price
+      };
+    });
+    
+    const itemsText = itemsWithPrice.map(i => `• ${i.name} × ${i.qty} = ${i.price.toFixed(0)} جنيه`).join('%0A');
+    
     const saveBtn = document.getElementById('saveOrderBtn');
     const loading = document.getElementById('orderLoading');
     saveBtn.disabled = true;
@@ -439,10 +617,7 @@
         customerName,
         customerPhone: '+2' + phone,
         customerAddress: address,
-        items: cart.map(i => ({
-          ...i,
-          price: useDiscount ? products.find(p=>p.id===i.id).sellPrice * (1-products.find(p=>p.id===i.id).discount/100) : products.find(p=>p.id===i.id).sellPrice
-        })),
+        items: itemsWithPrice,
         totalPrice: totalAfter,
         orderStatus: document.getElementById('status').value,
         timestamp: serverTimestamp()
@@ -497,20 +672,127 @@ ${itemsText.replace(/%0A/g, '\n')}
     document.getElementById('ordersList').innerHTML = filtered.map(o => {
       const items = o.items.map(i => `${i.name}×${i.qty}`).join('، ');
       const date = o.timestamp?.toDate?.()?.toLocaleString('ar-EG') || '';
+      const updated = o.updatedAt ? ` (محدث: ${o.updatedAt.toDate().toLocaleString('ar-EG')})` : '';
+      
       return `<tr>
         <td>${o.customerName}</td>
         <td><a href="https://wa.me/${o.customerPhone}" target="_blank">${o.customerPhone}</a></td>
         <td>${items}</td>
         <td>${o.totalPrice} ج</td>
         <td><span class="badge ${o.orderStatus==='جديد'?'new':o.orderStatus==='تحت التجهيز'?'processing':'delivered'}">${o.orderStatus}</span></td>
-        <td>${date}</td>
+        <td>${date}${updated}</td>
         <td class="action-btns">
+          <button class="orange small" onclick="window.editOrder('${o.id}')">تعديل</button>
           <button class="print-btn small" onclick="window.printInvoice('${o.id}')">طباعة</button>
           <button class="danger small" onclick="window.delOrder('${o.id}')">حذف</button>
         </td>
       </tr>`;
     }).join('') || '<tr><td colspan="7" style="text-align:center;padding:50px;color:#999">لا توجد طلبات</td></tr>';
   }
+
+  window.editOrder = async (id) => {
+    const order = orders.find(o => o.id === id);
+    if (!order) return alert("الطلب غير موجود");
+    
+    // تعبئة البيانات في نموذج التعديل
+    document.getElementById('editOrderId').value = order.id;
+    document.getElementById('editCname').value = order.customerName;
+    document.getElementById('editCphone').value = order.customerPhone.replace('+2', '');
+    document.getElementById('editCaddr').value = order.customerAddress || '';
+    document.getElementById('editStatus').value = order.orderStatus;
+    
+    // تعبئة السلة - هذا هو التصحيح المهم
+    editCart = order.items.map(item => ({
+      id: item.id,
+      name: item.name,
+      qty: item.qty,
+      imageUrl: item.imageUrl || '',
+      originalPrice: item.price || products.find(p => p.id === item.id)?.sellPrice || 0
+    }));
+    
+    renderEditCart();
+    
+    // إظهار صفحة التعديل
+    document.querySelectorAll('.card').forEach(el => el.style.display = 'none');
+    document.getElementById('edit-order').style.display = 'block';
+  };
+
+  window.updateOrder = async () => {
+    if (editCart.length === 0) return alert("أضف منتجات أولاً");
+    
+    const orderId = document.getElementById('editOrderId').value;
+    let phone = document.getElementById('editCphone').value.replace(/[^\d]/g, '');
+    if (!phone.startsWith('01') || phone.length !== 11) return alert("رقم الواتساب لازم 11 رقم يبدأ بـ 01");
+    
+    const customerName = document.getElementById('editCname').value.trim();
+    const address = document.getElementById('editCaddr').value.trim();
+    const orderStatus = document.getElementById('editStatus').value;
+    const useDiscount = document.getElementById('editApplyDiscount').checked;
+    
+    let totalAfter = 0;
+    const itemsWithPrice = editCart.map(i => {
+      const p = products.find(x => x.id === i.id);
+      let price;
+      
+      if (useDiscount) {
+        // استخدام السعر بعد الخصم
+        price = p.sellPrice * (1 - p.discount/100);
+      } else {
+        // استخدام السعر الأصلي المحفوظ أو سعر البيع الحالي
+        price = i.originalPrice || p.sellPrice;
+      }
+      
+      const itemTotal = price * i.qty;
+      totalAfter += itemTotal;
+      
+      return {
+        id: i.id,
+        name: i.name,
+        qty: i.qty,
+        imageUrl: i.imageUrl || '',
+        price: price
+      };
+    });
+    
+    const updateBtn = document.getElementById('updateOrderBtn');
+    const loading = document.getElementById('editOrderLoading');
+    updateBtn.disabled = true;
+    loading.style.display = 'block';
+    updateBtn.innerText = "جاري التحديث...";
+    
+    try {
+      console.log("جاري تحديث الطلب:", orderId);
+      
+      // تحديث الطلب في قاعدة البيانات
+      await updateDoc(doc(db, "orders", orderId), {
+        customerName: customerName,
+        customerPhone: '+2' + phone,
+        customerAddress: address,
+        items: itemsWithPrice,
+        totalPrice: totalAfter,
+        orderStatus: orderStatus,
+        updatedAt: serverTimestamp()
+      });
+      
+      console.log("تم تحديث الطلب بنجاح");
+      
+      // إعادة تحميل الطلبات لعرض التحديثات
+      await loadOrders();
+      
+      alert("✅ تم تحديث الطلب بنجاح!");
+      
+      // العودة إلى صفحة الطلبات
+      window.showPage('orders');
+      
+    } catch (err) {
+      console.error("خطأ في تحديث الطلب:", err);
+      alert("❌ فشل تحديث الطلب: " + err.message);
+    } finally {
+      updateBtn.disabled = false;
+      loading.style.display = 'none';
+      updateBtn.innerText = "تحديث الطلب";
+    }
+  };
 
   window.printInvoice = function(id) {
     const o = orders.find(x => x.id === id);
