@@ -18,7 +18,6 @@
     .sidebar a:hover,.sidebar a.active{background:var(--s);transform:translateX(-8px)}
     .main{margin-right:280px;padding:20px;width:100%;transition:.35s;min-height:100vh}
     .card{background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.1);padding:25px;margin-bottom:25px}
-
     input,select,button,textarea{width:100%;padding:14px 18px;margin:12px 0;border-radius:12px;border:1px solid #ddd;font-size:16px;transition:.3s}
     input:focus,select:focus{outline:none;border-color:var(--p);box-shadow:0 0 0 3px rgba(30,60,114,.15)}
     button{background:var(--p);color:#fff;border:none;cursor:pointer;font-weight:bold;padding:15px;border-radius:12px;transition:.3s}
@@ -28,7 +27,7 @@
     button.orange{background:var(--o);color:#fff}
     button.print-btn{background:#16a085;color:#fff}
     button.small{padding:8px 15px;font-size:14px;margin:5px}
-
+    button:disabled{background:#999;cursor:not-allowed;opacity:0.7}
     table{width:100%;border-collapse:collapse;margin:25px 0;border-radius:12px;overflow:hidden;box-shadow:0 5px 20px rgba(0,0,0,.08)}
     th{background:var(--p);color:#fff;padding:16px;text-align:center}
     td{padding:14px;text-align:center;border-bottom:1px solid #eee}
@@ -37,15 +36,12 @@
     .badge.new{background:#e3f2fd;color:#1976d2}
     .badge.processing{background:#fff3e0;color:#f57c00}
     .badge.delivered{background:#e8f5e8;color:#27ae60}
-
-    .upload{border:3px dashed var(--p);padding:50px;text-align:center;border-radius:16px;background:var(--l);cursor:pointer;transition:.3s;font-size:18px}
-    .upload:hover{background:#edf3ff}
     .searchable-select{position:relative}
     .searchable-select input{width:100%;padding:14px 40px 14px 18px}
     .searchable-select i{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:#777}
-    .cart-item{background:#f9f9f9;padding:15px;border-radius:12px;margin:10px 0;display:flex;align-items:center;flex-wrap:wrap;gap:15px}
-    .cart-item img{width:60px;height:60px;object-fit:cover;border-radius:8px}
-    .cart-total{background:var(--p);color:#fff;padding:20px;border-radius:12px;text-align:center;font-size:20px;margin:20px 0}
+    .cart-item{background:#f9f9f9;padding:15px;border-radius:12px;margin:10px 0;display:flex;align-items:center;flex-wrap:wrap;gap:15px;position:relative;padding-right:80px}
+    .cart-item img{width:70px;height:70px;object-fit:cover;border-radius:8px;position:absolute;right:10px;top:50%;transform:translateY(-50%)}
+    .cart-total{background:var(--p);color:#fff;padding:20px;border-radius:12px;text-align:center;font-size:26px;margin:20px 0;box-shadow:0 4px 12px rgba(0,0,0,0.2)}
     .discount-toggle{margin:20px 0;display:flex;align-items:center;gap:15px;font-size:18px;background:#fff8e1;padding:15px;border-radius:12px;flex-wrap:wrap}
     .switch{position:relative;display:inline-block;width:70px;height:34px}
     .switch input{opacity:0;width:0;height:0}
@@ -56,10 +52,9 @@
     .action-btns button{margin:5px}
     #menuBtn{display:none;position:fixed;top:15px;left:15px;z-index:9999;background:var(--p);color:#fff;border:none;padding:12px;border-radius:50%;font-size:20px;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,.2)}
     .export-btn{margin:10px 5px;padding:14px 25px;font-size:16px}
-    #uploadStatus{text-align:center;font-weight:bold;margin:15px 0}
     .product-img-preview{width:100px;height:100px;object-fit:cover;border-radius:8px;margin:10px 0}
     .product-img-table{width:60px;height:60px;object-fit:cover;border-radius:8px}
-
+    .loading{color:#1976d2;font-weight:bold;text-align:center;margin:20px 0;font-size:18px;display:none}
     @media(max-width:992px){
       .sidebar{transform:translateX(100%);width:280px}
       .sidebar.active{transform:translateX(0)}
@@ -69,61 +64,30 @@
     @media(max-width:576px){
       .card{padding:18px}
       .main{padding:10px}
-      .cart-item{flex-direction:column;text-align:center}
-      .cart-item img{margin:0 auto 10px}
+      .cart-item{flex-direction:column;text-align:center;padding-right:15px}
+      .cart-item img{position:static;transform:none;margin:0 auto 10px}
       table{font-size:14px}
       th,td{padding:10px 6px}
       .export-btn,.action-btns button{width:100%;margin:6px 0;display:block}
       .discount-toggle{flex-direction:column;align-items:flex-start}
     }
-
     #invoice{display:none;background:white;padding:30px;border:2px solid #333;border-radius:12px;max-width:800px;margin:20px auto;box-shadow:0 0 30px rgba(0,0,0,.3);font-size:18px}
     .invoice-header{text-align:center;margin-bottom:30px}
     .invoice-header h1{font-size:36px;color:var(--p);margin-bottom:10px;font-weight:900}
-    .invoice-header p{font-size:20px;color:#555}
     .invoice-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:30px 0;background:#f9f9f9;padding:20px;border-radius:12px}
-    .invoice-details div strong{color:var(--p)}
     .invoice-table{width:100%;border-collapse:collapse;margin:30px 0}
     .invoice-table th{background:var(--p);color:white;padding:15px;font-size:18px}
     .invoice-table td{padding:15px;border-bottom:1px solid #ddd;text-align:center;font-size:17px}
     .invoice-total{text-align:left;font-size:28px;font-weight:bold;margin-top:30px;padding:25px;background:linear-gradient(135deg,#f8fbff,#e3f2fd);border-radius:12px;color:var(--p)}
-
-      /* تحسين الطباعة 100% - خلي الفاتورة تطلع مظبوطة ومليانة بيانات */
     @media print {
-    body, html {
-      margin: 0 !important;
-      padding: 0 !important;
-      background: white !important;
-      color: black !important;
+      body,*{visibility:hidden}
+      #invoice,#invoice *{visibility:visible}
+      #invoice{position:absolute;left:0;top:0;width:100%;box-shadow:none;border:none}
+      .sidebar,#menuBtn,.main{display:none!important}
     }
-    #invoice {
-      display: block !important;
-      visibility: visible !important;
-      position: static !important;
-      width: 100% !important;
-      max-width: none !important;
-      box-shadow: none !important;
-      border: none !important;
-      padding: 30px !important;
-      margin: 0 !important;
-      font-size: 16px !important;
-    }
-    .invoice-header h1 { font-size: 36px !important; }
-    .invoice-details { font-size: 18px !important; }
-    .invoice-table th, .invoice-table td { 
-      border: 1px solid #000 !important; 
-      padding: 12px !important; 
-      font-size: 16px !important;
-    }
-    .invoice-total { font-size: 28px !important; }
-    * { visibility: hidden; }
-    #invoice, #invoice * { visibility: visible !important; }
-  }
-    
   </style>
 </head>
 <body>
-
 <button id="menuBtn" onclick="document.querySelector('.sidebar').classList.toggle('active')">
   <i class="fas fa-bars"></i>
 </button>
@@ -138,7 +102,6 @@
 </div>
 
 <div class="main">
-      <!-- صفحة الفاتورة -->
   <div id="invoice">
     <div class="invoice-header">
       <h1>Ashry Natural</h1>
@@ -151,36 +114,26 @@
       <div><strong>تاريخ الفاتورة:</strong> <span id="inv_date"></span></div>
     </div>
     <table class="invoice-table">
-      <thead>
-        <tr>
-          <th>المنتج</th>
-          <th>الكمية</th>
-          <th>سعر الوحدة</th>
-          <th>الإجمالي</th>
-        </tr>
-      </thead>
+      <thead><tr><th>المنتج</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead>
       <tbody id="inv_items"></tbody>
     </table>
     <div class="invoice-total">
       الإجمالي النهائي: <span id="inv_total">0</span> جنيه مصري
     </div>
     <div style="text-align:center;margin-top:50px;font-size:22px;color:#27ae60">
-      شكراً لثقتكم بنا<br>
-      <strong>Ashry Natural - صحتك تهمنا</strong>
+      شكراً لثقتكم بنا<br><strong>Ashry Natural - صحتك تهمنا</strong>
     </div>
   </div>
 
-  <!-- Login -->
   <div id="login" class="card" style="max-width:420px;margin:100px auto;text-align:center">
     <h2 style="color:var(--p);margin-bottom:30px">Ashry Natural</h2>
     <form id="loginForm">
-      <input type="email" id="email" value="Username" required>
-      <input type="password" id="pass" value="password" required>
+      <input type="email" id="email" placeholder="الإيميل" required>
+      <input type="password" id="pass" placeholder="كلمة المرور" required>
       <button type="submit">دخول</button>
     </form>
   </div>
 
-  <!-- Dashboard -->
   <div id="dashboard" class="card" style="display:none">
     <h2>لوحة التحكم</h2>
     <p style="font-size:22px;color:var(--p);margin:20px 0" id="currentTime"></p>
@@ -191,9 +144,9 @@
       <div class="stat" style="background:linear-gradient(135deg,var(--o),#e67e22);color:#fff;padding:30px;border-radius:16px;text-align:center"><h3>إجمالي المبيعات</h3><h2 id="totalSales">0 جنيه</h2></div>
     </div>
   </div>
-    <!-- Add Order -->
+
   <div id="add-order" class="card" style="display:none">
-    <h2 id="orderTitle">إضافة طلب جديد</h2>
+    <h2>إضافة طلب جديد</h2>
     <form id="customerForm">
       <input type="text" placeholder="اسم العميل" id="cname" required>
       <input type="tel" placeholder="رقم الواتساب (مثلاً: 01029149379)" id="cphone" required>
@@ -204,7 +157,6 @@
         <option value="تم التوصيل">تم التوصيل</option>
       </select>
     </form>
-
     <div class="discount-toggle">
       <label class="switch">
         <input type="checkbox" id="applyDiscount">
@@ -212,9 +164,7 @@
       </label>
       <span>تفعيل الخصم على كل المنتجات في هذا الطلب</span>
     </div>
-
     <hr style="margin:30px 0">
-
     <h3>إضافة منتجات</h3>
     <div style="display:grid;grid-template-columns:1fr 120px auto;gap:15px;align-items:end">
       <div class="searchable-select">
@@ -225,14 +175,12 @@
       <input type="number" id="qtyInput" value="1" min="1">
       <button type="button" onclick="window.addToCart()" class="success">إضافة</button>
     </div>
-
     <div id="cartItems" style="margin:20px 0"></div>
     <div class="cart-total" id="cartTotal">الإجمالي: 0 جنيه</div>
-
     <button onclick="window.saveOrder()" id="saveOrderBtn" style="margin-top:20px;padding:18px;font-size:18px">حفظ الطلب وإرسال واتساب</button>
+    <div id="orderLoading" class="loading">جاري حفظ الطلب، انتظر لحظة...</div>
   </div>
 
-  <!-- Orders -->
   <div id="orders" class="card" style="display:none">
     <h2>جميع الطلبات</h2>
     <div style="margin:20px 0">
@@ -247,66 +195,42 @@
       <tbody id="ordersList"></tbody>
     </table>
   </div>
-    <!-- Products -->
+
   <div id="products" class="card" style="display:none">
-  <h2>إدارة المنتجات</h2>
-
-  <div style="margin:20px 0; text-align:center;">
-    <button class="success export-btn" onclick="window.exportProductsToExcel()">
-      تصدير إلى إكسيل
-    </button>
-    <button class="danger export-btn" onclick="window.deleteAllProducts()">
-      حذف كل المنتجات
-    </button>
-
-    <!-- زرار الاستيراد الجديد اللي شغال 100% -->
-    <button class="orange export-btn" style="padding:14px 28px; font-size:17px; margin:0 8px;" 
-            onclick="document.getElementById('importExcel').click()">
-      استيراد من إكسل
-    </button>
-    <input type="file" id="importExcel" accept=".xlsx,.xls" 
-           onchange="window.importProductsFromExcel(event)" style="display:none;">
-    
-    <div style="margin-top:12px; color:#555; font-size:14px;">
-      الأعمدة المطلوبة: <strong>اسم المنتج | الكمية | سعر البيع | الخصم % | رابط الصورة (اختياري)</strong>
+    <h2>إدارة المنتجات</h2>
+    <div style="margin:20px 0; text-align:center;">
+      <button class="success export-btn" onclick="window.exportProductsToExcel()">تصدير إلى إكسيل</button>
+      <button class="danger export-btn" onclick="window.deleteAllProducts()">حذف كل المنتجات</button>
+      <button class="orange export-btn" onclick="document.getElementById('importExcel').click()">استيراد من إكسل</button>
+      <input type="file" id="importExcel" accept=".xlsx,.xls" onchange="window.importProductsFromExcel(event)" style="display:none;">
+      <div style="margin-top:12px; color:#555; font-size:14px;">
+        الأعمدة المطلوبة: <strong>اسم
+        المنتج | الكمية | سعر البيع | الخصم % | رابط الصورة (اختياري)</strong>
+      </div>
     </div>
+    <input type="text" id="searchProducts" placeholder="بحث عن منتج..." oninput="renderProducts()">
+    <form id="productForm" style="background:#f9f9f9;padding:25px;border-radius:16px;margin:25px 0">
+      <input type="hidden" id="editProductId">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px">
+        <input placeholder="اسم المنتج" id="pname" required>
+        <input type="number" placeholder="الكمية" id="pstock" required>
+        <input type="number" placeholder="سعر البيع" id="psell" required>
+        <input type="number" placeholder="الخصم %" id="pdiscount" min="0" max="100" value="0">
+        <input type="file" id="pimage" accept="image/*">
+        <div id="imagePreview"></div>
+      </div>
+      <button type="submit" id="productSubmitBtn">إضافة منتج</button>
+      <div id="productLoading" class="loading">جاري حفظ المنتج...</div>
+    </form>
+    <table>
+      <thead><tr>
+        <th>صورة</th><th>المنتج</th><th>المتوفر</th><th>سعر البيع</th><th>الخصم %</th><th>السعر بعد الخصم</th><th>إجراءات</th>
+      </tr></thead>
+      <tbody id="productsList"></tbody>
+    </table>
   </div>
-
-  <input type="text" id="searchProducts" placeholder="بحث عن منتج..." oninput="renderProducts()">
-
-  <!-- الجزء القديم بتاع السحب والإفلات ده نشيله خالص عشان ما يعملش تعارض -->
-  <!-- <div class="upload" onclick="document.getElementById('excel').click()">اسحب ملف إكسيل أو اضغط للرفع</div>
-  <input type="file" id="excel" accept=".xlsx,.xls,.csv" style="display:none">
-  <p id="uploadStatus"></p> -->
-
-  <form id="productForm" style="background:#f9f9f9;padding:25px;border-radius:16px;margin:25px 0">
-    <input type="hidden" id="editProductId">
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px">
-      <input placeholder="اسم المنتج" id="pname" required>
-      <input type="number" placeholder="الكمية" id="pstock" required>
-      <input type="number" placeholder="سعر البيع" id="psell" required>
-      <input type="number" placeholder="الخصم %" id="pdiscount" min="0" max="100" value="0">
-      <input type="file" id="pimage" accept="image/*">
-      <div id="imagePreview"></div>
-    </div>
-    <button type="submit" id="productSubmitBtn">إضافة منتج</button>
-  </form>
-
-  <table>
-    <thead>
-      <tr>
-        <th>صورة</th>
-        <th>المنتج</th>
-        <th>المتوفر</th>
-        <th>سعر البيع</th>
-        <th>الخصم %</th>
-        <th>السعر بعد الخصم</th>
-        <th>إجراءات</th>
-      </tr>
-    </thead>
-    <tbody id="productsList"></tbody>
-  </table>
 </div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
@@ -314,19 +238,18 @@
 
   const app = initializeApp({
     apiKey: "AIzaSyAuRBWr54OUPpH63rYX2GuX5UGMippYSkQ",
-    authDomain: "ashrynatural.firebaseapp.com",
-    projectId: "ashrynatural",
-    storageBucket: "ashrynatural.firebasestorage.app",
+    authDomain: "ashrynutral.firebaseapp.com",
+    projectId: "ashrynutral",
+    storageBucket: "ashrynutral.firebasestorage.app",
     messagingSenderId: "272736958880",
     appId: "1:272736958880:web:5d565a91be484a9cbf4cc5"
   });
 
   const auth = getAuth(app);
   const db = getFirestore(app);
-  let products = [], orders = [], cart = [];
-
-  // ضع هنا API Key بتاعك من ImgBB بعد التسجيل
   const IMGBB_API_KEY = "6e0b6ad4c71f839987c098fe183beca5";
+
+  let products = [], orders = [], cart = [];
 
   window.showPage = function(s) {
     document.querySelectorAll('.card, #invoice').forEach(el => el.style.display = 'none');
@@ -394,21 +317,31 @@
 
   document.getElementById('productForm').onsubmit = async e => {
     e.preventDefault();
+    const submitBtn = document.getElementById('productSubmitBtn');
+    const loading = document.getElementById('productLoading');
+    submitBtn.disabled = true;
+    loading.style.display = 'block';
+
     const id = document.getElementById('editProductId').value;
     let imageUrl = products.find(p => p.id === id)?.imageUrl || '';
-
     const file = document.getElementById('pimage').files[0];
+
+    if (file && file.size > 3*1024*1024) {
+      alert("حجم الصورة كبير جدًا! اختر صورة أقل من 3 ميجا");
+      submitBtn.disabled = false;
+      loading.style.display = 'none';
+      return;
+    }
+
     if (file) {
-      if (IMGBB_API_KEY.includes("كي_ImgBB")) { alert("أضف API Key من ImgBB أولاً!"); return; }
-      document.getElementById('imagePreview').innerHTML = '<small style="color:#1976d2">جاري رفع الصورة...</small>';
       const formData = new FormData();
       formData.append('image', file);
       try {
         const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {method:'POST', body:formData});
         const json = await res.json();
         if (json.success) imageUrl = json.data.url;
-        else { alert("فشل رفع الصورة"); return; }
-      } catch { alert("مشكلة في النت أو الكي"); return; }
+        else { alert("فشل رفع الصورة"); submitBtn.disabled = false; loading.style.display = 'none'; return; }
+      } catch { alert("مشكلة في رفع الصورة"); submitBtn.disabled = false; loading.style.display = 'none'; return; }
     }
 
     const data = {
@@ -421,13 +354,17 @@
 
     try {
       id ? await updateDoc(doc(db,"products",id), data) : await addDoc(collection(db,"products"), data);
-      alert(id ? "تم التعديل ✓" : "تم الإضافة ✓");
+      alert(id ? "تم التعديل بنجاح" : "تم إضافة المنتج بنجاح");
       e.target.reset();
       document.getElementById('imagePreview').innerHTML = '';
       document.getElementById('editProductId').value = '';
-      document.getElementById('productSubmitBtn').innerText = "إضافة منتج";
+      submitBtn.innerText = "إضافة منتج";
       loadProducts();
     } catch (err) { alert("خطأ: " + err.message); }
+    finally {
+      submitBtn.disabled = false;
+      loading.style.display = 'none';
+    }
   };
 
   window.editProduct = id => {
@@ -477,27 +414,23 @@
     const useDiscount = document.getElementById('applyDiscount').checked;
     let total = 0;
     let html = cart.length === 0 ? '<p style="text-align:center;color:#999;margin:40px 0;">السلة فارغة</p>' : '';
-
     cart.forEach((item, i) => {
       const p = products.find(x => x.id === item.id);
       const price = useDiscount ? p.sellPrice * (1 - p.discount/100) : p.sellPrice;
       total += price * item.qty;
       html += `
-        <div class="cart-item" style="position:relative;padding:15px 15px 15px 80px;border:1px solid #eee;border-radius:12px;margin:12px 0;background:#fafafa;">
-          ${item.imageUrl ? `<img src="${item.imageUrl}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;position:absolute;left:10px;top:50%;transform:translateY(-50%);">` : '<div style="width:70px;height:70px;background:#eee;border-radius:8px;position:absolute;left:10px;top:50%;transform:translateY(-50%);"></div>'}
+        <div class="cart-item">
+          ${item.imageUrl ? `<img src="${item.imageUrl}">` : '<div style="width:70px;height:70px;background:#eee;border-radius:8px"></div>'}
           <div style="font-weight:bold;font-size:17px;">${item.name} × ${item.qty}</div>
           ${useDiscount && p.discount > 0 ? `<small style="color:#e67e22;font-weight:bold;">خصم ${p.discount}%</small><br>` : ''}
           <div style="font-size:19px;color:var(--p);margin-top:8px;"><strong>${(price * item.qty).toFixed(0)} جنيه</strong></div>
-          <button class="danger small" data-i="${i}" style="margin-top:10px;">حذف</button>
+          <button class="danger small" onclick="cart.splice(${i},1);renderCart()">حذف</button>
         </div>`;
     });
-
     document.getElementById('cartItems').innerHTML = html;
-    document.getElementById('cartTotal').innerHTML = `<div style="background:#1e3a8a;padding:20px;border-radius:12px;color:#ffffff;font-size:26px;font-weight:bold;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+    document.getElementById('cartTotal').innerHTML = `<div style="background:#1e3a8a;padding:20px;border-radius:12px;color:#ffffff;font-size:26px;font-weight:bold;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.2)">
       الإجمالي: ${total.toFixed(0)} جنيه مصري
     </div>`;
-
-    document.querySelectorAll('#cartItems button[data-i]').forEach(b => b.onclick = () => { cart.splice(b.dataset.i, 1); renderCart(); });
   }
 
   document.getElementById('applyDiscount').onchange = renderCart;
@@ -507,29 +440,34 @@
     let phone = document.getElementById('cphone').value.replace(/[^\d]/g, '');
     if(!phone.startsWith('01') || phone.length !== 11) return alert("رقم الواتساب لازم 11 رقم يبدأ بـ 01");
     const fullPhone = '+2' + phone;
-
     const useDiscount = document.getElementById('applyDiscount').checked;
     const totalAfter = cart.reduce((s, i) => s + (useDiscount ? products.find(p=>p.id===i.id).sellPrice * (1 - products.find(p=>p.id===i.id).discount/100) : products.find(p=>p.id===i.id).sellPrice) * i.qty, 0);
-
     const items = cart.map(i => ({...i, price: useDiscount ? products.find(p=>p.id===i.id).sellPrice * (1 - products.find(p=>p.id===i.id).discount/100) : products.find(p=>p.id===i.id).sellPrice}));
 
-    const orderData = {
-      customerName: document.getElementById('cname').value.trim(),
-      customerPhone: fullPhone,
-      customerAddress: document.getElementById('caddr').value.trim(),
-      items, totalPrice: totalAfter,
-      orderStatus: document.getElementById('status').value,
-      timestamp: serverTimestamp()
-    };
+    const saveBtn = document.getElementById('saveOrderBtn');
+    const loading = document.getElementById('orderLoading');
+    saveBtn.disabled = true;
+    loading.style.display = 'block';
 
     try {
-      await addDoc(collection(db,"orders"), orderData);
+      await addDoc(collection(db,"orders"), {
+        customerName: document.getElementById('cname').value.trim(),
+        customerPhone: fullPhone,
+        customerAddress: document.getElementById('caddr').value.trim(),
+        items, totalPrice: totalAfter,
+        orderStatus: document.getElementById('status').value,
+        timestamp: serverTimestamp()
+      });
       for(const i of cart) await updateDoc(doc(db,"products",i.id), {stock: increment(-i.qty)});
-      alert("تم حفظ الطلب ✓");
+      alert("تم حفظ الطلب بنجاح");
       document.getElementById('customerForm').reset();
       cart = []; renderCart(); document.getElementById('applyDiscount').checked = false;
       loadOrders(); loadProducts();
     } catch(err) { alert("خطأ: " + err.message); }
+    finally {
+      saveBtn.disabled = false;
+      loading.style.display = 'none';
+    }
   };
 
   async function loadOrders() {
@@ -560,8 +498,8 @@
   }
 
   window.delOrder = id => confirm("حذف نهائي؟") && deleteDoc(doc(db,'orders',id)).then(loadOrders);
-  window.deleteAllOrders = () => confirm("حذف الكل؟") && getDocs(collection(db,"orders")).then(s => { const b = writeBatch(db); s.docs.forEach(d => b.delete(d.ref)); b.commit(); }).then(loadOrders);
-  window.deleteAllProducts = () => confirm("حذف الكل؟") && getDocs(collection(db,"products")).then(s => { const b = writeBatch(db); s.docs.forEach(d => b.delete(d.ref)); b.commit(); }).then(loadProducts);
+  window.deleteAllOrders = () => confirm("حذف الكل؟") && getDocs(collection(db,"orders")).then(s => { const b = writeBatch(db); s.docs.forEach(d => b.delete(d.ref)); return b.commit(); }).then(loadOrders);
+  window.deleteAllProducts = () => confirm("حذف الكل؟") && getDocs(collection(db,"products")).then(s => { const b = writeBatch(db); s.docs.forEach(d => b.delete(d.ref)); return b.commit(); }).then(loadProducts);
 
   function updateDashboard() {
     const today = new Date().toDateString();
@@ -576,11 +514,8 @@
 
   window.exportProductsToExcel = () => {
     const data = products.map(p => ({
-      "اسم المنتج": p.name,
-      "الكمية": p.stock,
-      "سعر البيع": p.sellPrice,
-      "الخصم %": p.discount || 0,
-      "السعر بعد الخصم": (p.sellPrice * (1 - (p.discount || 0)/100)).toFixed(0),
+      "اسم المنتج": p.name, "الكمية": p.stock, "سعر البيع": p.sellPrice,
+      "الخصم %": p.discount || 0, "السعر بعد الخصم": (p.sellPrice * (1 - (p.discount || 0)/100)).toFixed(0),
       "رابط الصورة": p.imageUrl || ""
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -592,13 +527,9 @@
 
   window.exportOrdersToExcel = () => {
     const data = orders.map(o => ({
-      "اسم العميل": o.customerName,
-      "رقم الواتساب": o.customerPhone,
-      "العنوان": o.customerAddress || "غير محدد",
-      "المنتجات": o.items.map(i => `${i.name} × ${i.qty}`).join(" | "),
-      "الإجمالي": o.totalPrice,
-      "الحالة": o.orderStatus,
-      "التاريخ": o.timestamp?.toDate?.()?.toLocaleString('ar-EG') || ""
+      "اسم العميل": o.customerName, "رقم الواتساب": o.customerPhone, "العنوان": o.customerAddress || "غير محدد",
+      "المنتجات": o.items.map(i => `${i.name} × ${i.qty}`).join(" | "), "الإجمالي": o.totalPrice,
+      "الحالة": o.orderStatus, "التاريخ": o.timestamp?.toDate?.()?.toLocaleString('ar-EG') || ""
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -606,54 +537,34 @@
     XLSX.writeFile(wb, "AshryNatural_الطلبات_" + new Date().toISOString().slice(0,10) + ".xlsx");
   };
 
-  // استيراد من إكسل - شغال 100% مع الصور
-    // استيراد من إكسل - شغال 100% مع الصور والخصم (النسخة النهائية 2025)
   window.importProductsFromExcel = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = async function (ev) {
       try {
         const data = new Uint8Array(ev.target.result);
         const workbook = XLSX.read(data, { type: "array" });
         const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-
-        let added = 0;
-        let skipped = 0;
-
+        let added = 0, skipped = 0;
         for (const r of rows) {
-          const name = String(r["اسم المنتج"] || r["الاسم"] || r["Name"] || r["Product Name"] || "").trim();
-          const stock = Number(r["الكمية"] || r["الكميه"] || r["Stock"] || r["Quantity"] || 0) || 0;
-          const sellPrice = Number(r["سعر البيع"] || r["السعر"] || r["Price"] || 0) || 0;
-          const discount = Number(r["الخصم %"] || r["خصم"] || r["Discount"] || 0) || 0;
-          const imageUrl = String(r["رابط الصورة"] || r["صورة"] || r["الصورة"] || r["Image"] || r["imageUrl"] || "").trim();
-
-          if (!name || sellPrice <= 0) {
-            skipped++;
-            continue;
-          }
-
-          await addDoc(collection(db, "products"), {
-            name,
-            stock,
-            sellPrice,
-            discount,
-            imageUrl: imageUrl || ""
-          });
+          const name = String(r["اسم المنتج"] || r["الاسم"] || "").trim();
+          const stock = Number(r["الكمية"] || 0) || 0;
+          const sellPrice = Number(r["سعر البيع"] || r["السعر"] || 0) || 0;
+          const discount = Number(r["الخصم %"] || 0) || 0;
+          const imageUrl = String(r["رابط الصورة"] || "").trim();
+          if (!name || sellPrice <= 0) { skipped++; continue; }
+          await addDoc(collection(db, "products"), { name, stock, sellPrice, discount, imageUrl: imageUrl || "" });
           added++;
         }
-
-        alert(`تم الاستيراد بنجاح!\nأُضيف: ${added} منتج\nتم تجاهل: ${skipped} صف`);
+        alert(`تم الاستيراد!\nأُضيف: ${added}\nتم تجاهل: ${skipped}`);
         loadProducts();
         e.target.value = "";
-      } catch (err) {
-        console.error(err);
-        alert("فشل قراءة الملف! تأكد إنه ملف إكسل صحيح (.xlsx) ومش مفتوح في برنامج تاني");
-      }
+      } catch (err) { alert("فشل قراءة الملف! تأكد من صيغة الإكسيل"); }
     };
     reader.readAsArrayBuffer(file);
   };
+
   window.printInvoice = function(id) {
     const o = orders.find(x => x.id === id);
     if (!o) return alert("الطلب مش موجود");
@@ -671,9 +582,8 @@
     document.querySelectorAll('.card, .sidebar, #menuBtn').forEach(el => el.style.display = 'none');
     document.body.style.background = 'white';
     document.getElementById('invoice').style.display = 'block';
-    setTimeout(() => { window.print(); setTimeout(() => location.reload(), 1000); }, 1200);
+    setTimeout(() => { window.print(); setTimeout(() => location.reload(), 1000); }, 800);
   };
-
 </script>
 </body>
 </html>
