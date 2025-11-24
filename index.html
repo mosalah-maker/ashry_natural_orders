@@ -80,11 +80,44 @@
     .invoice-table td{padding:15px;border-bottom:1px solid #ddd;text-align:center;font-size:17px}
     .invoice-total{text-align:left;font-size:28px;font-weight:bold;margin-top:30px;padding:25px;background:linear-gradient(135deg,#f8fbff,#e3f2fd);border-radius:12px;color:var(--p)}
     @media print {
-      body,*{visibility:hidden}
-      #invoice,#invoice *{visibility:visible}
-      #invoice{position:absolute;left:0;top:0;width:100%;box-shadow:none;border:none}
-      .sidebar,#menuBtn,.main{display:none!important}
-    }
+  @page { margin: 1cm; }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  #invoice, #invoice * {
+    visibility: visible !important;
+  }
+
+  #invoice {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    padding: 20px !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  .invoice-table, .invoice-table th, .invoice-table td {
+    border: 1px solid black !important;
+    border-collapse: collapse !important;
+  }
+
+  .invoice-table th {
+    background: #1e3c72 !important;
+    color: white !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .invoice-total {
+    background: linear-gradient(135deg, #f8fbff, #e3f2fd) !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+}
   </style>
 </head>
 <body>
@@ -566,24 +599,51 @@
   };
 
   window.printInvoice = function(id) {
-    const o = orders.find(x => x.id === id);
-    if (!o) return alert("الطلب مش موجود");
-    document.getElementById('inv_name').textContent = o.customerName;
-    document.getElementById('inv_phone').textContent = o.customerPhone;
-    document.getElementById('inv_addr').textContent = o.customerAddress || "غير محدد";
-    document.getElementById('inv_date').textContent = new Date().toLocaleString('ar-EG');
-    document.getElementById('inv_total').textContent = Number(o.totalPrice).toLocaleString();
-    document.getElementById('inv_items').innerHTML = o.items.map(i => `
-      <tr><td style="padding:12px;font-weight:bold;">${i.name}</td>
-      <td style="padding:12px;">${i.qty}</td>
-      <td style="padding:12px;">${Number(i.price || 0).toFixed(0)} ج.م</td>
-      <td style="padding:12px;">${(Number(i.price || 0) * i.qty).toFixed(0)} ج.م</td></tr>
-    `).join('');
-    document.querySelectorAll('.card, .sidebar, #menuBtn').forEach(el => el.style.display = 'none');
-    document.body.style.background = 'white';
-    document.getElementById('invoice').style.display = 'block';
-    setTimeout(() => { window.print(); setTimeout(() => location.reload(), 1000); }, 800);
+  const o = orders.find(x => x.id === id);
+  if (!o) return alert("الطلب مش موجود");
+
+  // 1- ملء بيانات الفاتورة
+  document.getElementById('inv_name').textContent = o.customerName;
+  document.getElementById('inv_phone').textContent = o.customerPhone;
+  document.getElementById('inv_addr').textContent = o.customerAddress || "غير محدد";
+  document.getElementById('inv_date').textContent = new Date().toLocaleString('ar-EG');
+  document.getElementById('inv_total').textContent = Number(o.totalPrice).toLocaleString();
+
+  document.getElementById('inv_items').innerHTML = o.items.map(i => `
+    <tr>
+      <td style="padding:12px;font-weight:bold;border:1px solid #000">${i.name}</td>
+      <td style="padding:12px;border:1px solid #000;text-align:center">${i.qty}</td>
+      <td style="padding:12px;border:1px solid #000;text-align:center">${Number(i.price || 0).toFixed(0)}</td>
+      <td style="padding:12px;border:1px solid #000;text-align:center">${(Number(i.price || 0) * i.qty).toFixed(0)}</td>
+    </tr>
+  `).join('');
+
+  // 2- إخفاء كل الصفحة ما عدا الفاتورة
+  document.querySelectorAll('.card, .sidebar, #menuBtn').forEach(el => el.style.display = 'none');
+  document.body.style.background = 'white';
+  document.body.style.margin = '0';
+  document.body.style.padding = '0';
+
+  const invoice = document.getElementById('invoice');
+  invoice.style.display = 'block';
+  invoice.style.position = 'absolute';
+  invoice.style.left = '0';
+  invoice.style.top = '0';
+  invoice.style.width = '100%';
+  invoice.style.padding = '30px';
+  invoice.style.boxShadow = 'none';
+  invoice.style.background = 'white';
+
+  // 3- أهم حاجة: إجبار المتصفح يرسم الفاتورة كاملة قبل الطباعة
+  setTimeout(() => {
+    window.print();
+  }, 300);   // 300 مللي ثانية كافية جدًا
+
+  // 4- إرجاع الصفحة زي ما كانت بعد الطباعة أو الإلغاء
+  window.onafterprint = () => {
+    location.reload();   // أضمن طريقة ترجع كل حاجة زي ما كانت
   };
+};
 </script>
 </body>
 </html>
