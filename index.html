@@ -55,6 +55,7 @@
     .product-img-preview{width:100px;height:100px;object-fit:cover;border-radius:8px;margin:10px 0}
     .product-img-table{width:60px;height:60px;object-fit:cover;border-radius:8px}
     .loading{color:#1976d2;font-weight:bold;text-align:center;margin:20px 0;font-size:18px;display:none}
+    .remove-item-btn{position:absolute;left:10px;top:50%;transform:translateY(-50%);background:#e74c3c;color:white;padding:8px 12px;border-radius:8px;font-size:14px;cursor:pointer}
     @media(max-width:992px){
       .sidebar{transform:translateX(100%);width:280px}
       .sidebar.active{transform:translateX(0)}
@@ -64,8 +65,9 @@
     @media(max-width:576px){
       .card{padding:18px}
       .main{padding:10px}
-      .cart-item{flex-direction:column;text-align:center;padding-right:15px}
+      .cart-item{flex-direction:column;text-align:center;padding-right:15px;padding-left:15px}
       .cart-item img{position:static;transform:none;margin:0 auto 10px}
+      .remove-item-btn{position:static;transform:none;margin-top:10px}
       table{font-size:14px}
       th,td{padding:10px 6px}
       .export-btn,.action-btns button{width:100%;margin:6px 0;display:block}
@@ -80,44 +82,25 @@
     .invoice-table td{padding:15px;border-bottom:1px solid #ddd;text-align:center;font-size:17px}
     .invoice-total{text-align:left;font-size:28px;font-weight:bold;margin-top:30px;padding:25px;background:linear-gradient(135deg,#f8fbff,#e3f2fd);border-radius:12px;color:var(--p)}
     @media print {
-  @page { margin: 1cm; }
-
-  body * {
-    visibility: hidden !important;
-  }
-
-  #invoice, #invoice * {
-    visibility: visible !important;
-  }
-
-  #invoice {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    padding: 20px !important;
-    background: white !important;
-    color: black !important;
-  }
-
-  .invoice-table, .invoice-table th, .invoice-table td {
-    border: 1px solid black !important;
-    border-collapse: collapse !important;
-  }
-
-  .invoice-table th {
-    background: #1e3c72 !important;
-    color: white !important;
-    -webkit-print-color-adjust: exact !important;
-    color-adjust: exact !important;
-  }
-
-  .invoice-total {
-    background: linear-gradient(135deg, #f8fbff, #e3f2fd) !important;
-    -webkit-print-color-adjust: exact !important;
-    color-adjust: exact !important;
-  }
-}
+      @page { margin: 1cm; }
+      body * { visibility: hidden !important; }
+      #invoice, #invoice * { visibility: visible !important; }
+      #invoice {
+        position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important;
+        padding: 20px !important; background: white !important; color: black !important;
+      }
+      .invoice-table, .invoice-table th, .invoice-table td {
+        border: 1px solid black !important; border-collapse: collapse !important;
+      }
+      .invoice-table th {
+        background: #1e3c72 !important; color: white !important;
+        -webkit-print-color-adjust: exact !important; color-adjust: exact !important;
+      }
+      .invoice-total {
+        background: linear-gradient(135deg, #f8fbff, #e3f2fd) !important;
+        -webkit-print-color-adjust: exact !important; color-adjust: exact !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -192,7 +175,7 @@
     </form>
     <div class="discount-toggle">
       <label class="switch">
-        <input type="checkbox" id="applyDiscount">
+        <input type="checkbox" id="applyDiscount" onchange="renderCart()">
         <span class="slider"></span>
       </label>
       <span>تفعيل الخصم على كل المنتجات في هذا الطلب</span>
@@ -211,7 +194,7 @@
     <div id="cartItems" style="margin:20px 0"></div>
     <div class="cart-total" id="cartTotal">الإجمالي: 0 جنيه</div>
     <button onclick="window.saveOrder()" id="saveOrderBtn" style="margin-top:20px;padding:18px;font-size:18px">حفظ الطلب وإرسال واتساب</button>
-    <div id="orderLoading" class="loading">جاري حفظ الطلب، انتظر لحظة...</div>
+    <div id="orderLoading" class="loading">جاري الحفظ والإرسال...</div>
   </div>
 
   <div id="orders" class="card" style="display:none">
@@ -237,8 +220,7 @@
       <button class="orange export-btn" onclick="document.getElementById('importExcel').click()">استيراد من إكسل</button>
       <input type="file" id="importExcel" accept=".xlsx,.xls" onchange="window.importProductsFromExcel(event)" style="display:none;">
       <div style="margin-top:12px; color:#555; font-size:14px;">
-        الأعمدة المطلوبة: <strong>اسم
-        المنتج | الكمية | سعر البيع | الخصم % | رابط الصورة (اختياري)</strong>
+        الأعمدة المطلوبة: <strong>اسم المنتج | الكمية | سعر البيع | الخصم % | رابط الصورة (اختياري)</strong>
       </div>
     </div>
     <input type="text" id="searchProducts" placeholder="بحث عن منتج..." oninput="renderProducts()">
@@ -273,7 +255,7 @@
     apiKey: "AIzaSyAuRBWr54OUPpH63rYX2GuX5UGMippYSkQ",
     authDomain: "ashrynutral.firebaseapp.com",
     projectId: "ashrynutral",
-    storageBucket: "ashrynutral.firebasestorage.app",
+    storageBucket: "ashrynutral.appspot.com",
     messagingSenderId: "272736958880",
     appId: "1:272736958880:web:5d565a91be484a9cbf4cc5"
   });
@@ -339,81 +321,6 @@
     }).join('') || '<tr><td colspan="7" style="text-align:center;padding:50px;color:#999">لا توجد منتجات</td></tr>';
   }
 
-  document.getElementById('pimage').onchange = e => {
-    const file = e.target.files[0];
-    if(file){
-      const reader = new FileReader();
-      reader.onload = ev => document.getElementById('imagePreview').innerHTML = `<img src="${ev.target.result}" class="product-img-preview">`;
-      reader.readAsDataURL(file);
-    }
-  };
-
-  document.getElementById('productForm').onsubmit = async e => {
-    e.preventDefault();
-    const submitBtn = document.getElementById('productSubmitBtn');
-    const loading = document.getElementById('productLoading');
-    submitBtn.disabled = true;
-    loading.style.display = 'block';
-
-    const id = document.getElementById('editProductId').value;
-    let imageUrl = products.find(p => p.id === id)?.imageUrl || '';
-    const file = document.getElementById('pimage').files[0];
-
-    if (file && file.size > 3*1024*1024) {
-      alert("حجم الصورة كبير جدًا! اختر صورة أقل من 3 ميجا");
-      submitBtn.disabled = false;
-      loading.style.display = 'none';
-      return;
-    }
-
-    if (file) {
-      const formData = new FormData();
-      formData.append('image', file);
-      try {
-        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {method:'POST', body:formData});
-        const json = await res.json();
-        if (json.success) imageUrl = json.data.url;
-        else { alert("فشل رفع الصورة"); submitBtn.disabled = false; loading.style.display = 'none'; return; }
-      } catch { alert("مشكلة في رفع الصورة"); submitBtn.disabled = false; loading.style.display = 'none'; return; }
-    }
-
-    const data = {
-      name: document.getElementById('pname').value.trim(),
-      stock: +document.getElementById('pstock').value,
-      sellPrice: +document.getElementById('psell').value,
-      discount: +document.getElementById('pdiscount').value || 0,
-      imageUrl
-    };
-
-    try {
-      id ? await updateDoc(doc(db,"products",id), data) : await addDoc(collection(db,"products"), data);
-      alert(id ? "تم التعديل بنجاح" : "تم إضافة المنتج بنجاح");
-      e.target.reset();
-      document.getElementById('imagePreview').innerHTML = '';
-      document.getElementById('editProductId').value = '';
-      submitBtn.innerText = "إضافة منتج";
-      loadProducts();
-    } catch (err) { alert("خطأ: " + err.message); }
-    finally {
-      submitBtn.disabled = false;
-      loading.style.display = 'none';
-    }
-  };
-
-  window.editProduct = id => {
-    const p = products.find(x => x.id === id);
-    document.getElementById('editProductId').value = id;
-    document.getElementById('pname').value = p.name;
-    document.getElementById('pstock').value = p.stock;
-    document.getElementById('psell').value = p.sellPrice;
-    document.getElementById('pdiscount').value = p.discount;
-    if(p.imageUrl) document.getElementById('imagePreview').innerHTML = `<img src="${p.imageUrl}" class="product-img-preview">`;
-    document.getElementById('productSubmitBtn').innerText = "حفظ التعديل";
-    window.showPage('products');
-  };
-
-  window.delP = id => confirm("حذف نهائي؟") && deleteDoc(doc(db,"products",id)).then(loadProducts);
-
   function loadProductsForCart() {
     const input = document.getElementById('prodSearch');
     const select = document.getElementById('prodSelect');
@@ -444,62 +351,154 @@
   };
 
   function renderCart() {
-    const useDiscount = document.getElementById('applyDiscount').checked;
-    let total = 0;
-    let html = cart.length === 0 ? '<p style="text-align:center;color:#999;margin:40px 0;">السلة فارغة</p>' : '';
-    cart.forEach((item, i) => {
+  const useDiscount = document.getElementById('applyDiscount').checked;
+  let total = 0;
+  let html = '';
+
+  if (cart.length === 0) {
+    html = '<p style="text-align:center;color:#999;margin:50px 0;font-size:18px;">السلة فارغة، ابدأ بإضافة منتجات</p>';
+  } else {
+    cart.forEach((item, index) => {
       const p = products.find(x => x.id === item.id);
+      if (!p) return;
+
       const price = useDiscount ? p.sellPrice * (1 - p.discount/100) : p.sellPrice;
       total += price * item.qty;
+
       html += `
-        <div class="cart-item">
-          ${item.imageUrl ? `<img src="${item.imageUrl}">` : '<div style="width:70px;height:70px;background:#eee;border-radius:8px"></div>'}
-          <div style="font-weight:bold;font-size:17px;">${item.name} × ${item.qty}</div>
-          ${useDiscount && p.discount > 0 ? `<small style="color:#e67e22;font-weight:bold;">خصم ${p.discount}%</small><br>` : ''}
-          <div style="font-size:19px;color:var(--p);margin-top:8px;"><strong>${(price * item.qty).toFixed(0)} جنيه</strong></div>
-          <button class="danger small" onclick="cart.splice(${i},1);renderCart()">حذف</button>
+        <div class="cart-item" style="position:relative;padding-left:60px;padding-right:15px;min-height:90px;">
+          <!-- زر الحذف في أقصى الشمال (مش بيغطي حاجة) -->
+          <button onclick="removeFromCart(${index})" 
+                  style="position:absolute;left:10px;top:50%;transform:translateY(-50%);
+                         background:#e74c3c;color:white;width:40px;height:40px;
+                         border:none;border-radius:50%;cursor:pointer;font-size:16px;
+                         box-shadow:0 2px 10px rgba(231,76,60,0.3);z-index:10;">
+            <i class="fas fa-trash"></i>
+          </button>
+
+          <!-- صورة المنتج -->
+          ${item.imageUrl ? 
+            `<img src="${item.imageUrl}" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;object-fit:cover;border-radius:8px;">` 
+            : '<div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;background:#eee;border-radius:8px;"></div>'}
+
+          <!-- تفاصيل المنتج -->
+          <div style="padding:15px 80px 15px 10px;">
+            <div style="font-weight:bold;font-size:18px;margin-bottom:8px;">${item.name}</div>
+            <div style="color:#555;margin-bottom:8px;">الكمية: <strong>${item.qty}</strong></div>
+            ${useDiscount && p.discount > 0 ? 
+              `<div style="color:#e67e22;font-weight:bold;font-size:14px;">✓ تم تطبيق خصم ${p.discount}%</div>` : ''}
+            <div style="font-size:20px;color:#1e3c72;margin-top:10px;font-weight:bold;">
+              ${(price * item.qty).toFixed(0)} جنيه
+            </div>
+          </div>
         </div>`;
     });
-    document.getElementById('cartItems').innerHTML = html;
-    document.getElementById('cartTotal').innerHTML = `<div style="background:#1e3a8a;padding:20px;border-radius:12px;color:#ffffff;font-size:26px;font-weight:bold;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.2)">
-      الإجمالي: ${total.toFixed(0)} جنيه مصري
-    </div>`;
   }
 
-  document.getElementById('applyDiscount').onchange = renderCart;
+  document.getElementById('cartItems').innerHTML = html;
+
+  document.getElementById('cartTotal').innerHTML = `
+    <div style="background:linear-gradient(135deg,#1e3c72,#2a5298);color:white;padding:25px;border-radius:16px;text-align:center;font-size:28px;font-weight:900;box-shadow:0 8px 25px rgba(30,60,114,0.3);margin:20px 0;">
+      الإجمالي: ${total.toFixed(0)} جنيه مصري
+    </div>`;
+    // دالة حذف من السلة - مضمونة 100%
+window.removeFromCart = function(index) {
+  if (confirm("هل تريد حذف هذا المنتج من السلة؟")) {
+    cart.splice(index, 1);
+    renderCart();
+  }
+};
+}
+    document.getElementById('cartItems').innerHTML = html;
+    document.getElementById('cartTotal').innerHTML = `
+      <div style="background:#1e3a8a;padding:20px;border-radius:12px;color:#ffffff;font-size:26px;font-weight:bold;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.2)">
+        الإجمالي: ${total.toFixed(0)} جنيه مصري
+      </div>`;
+  
 
   window.saveOrder = async () => {
-    if(cart.length === 0) return alert("أضف منتجات");
+    if (cart.length === 0) return alert("أضف منتجات أولاً");
+
     let phone = document.getElementById('cphone').value.replace(/[^\d]/g, '');
-    if(!phone.startsWith('01') || phone.length !== 11) return alert("رقم الواتساب لازم 11 رقم يبدأ بـ 01");
-    const fullPhone = '+2' + phone;
+    if (!phone.startsWith('01') || phone.length !== 11) return alert("رقم الواتساب لازم 11 رقم يبدأ بـ 01");
+
+    const fullPhone = '2' + phone;
+    const customerName = document.getElementById('cname').value.trim();
+    const address = document.getElementById('caddr').value.trim();
     const useDiscount = document.getElementById('applyDiscount').checked;
-    const totalAfter = cart.reduce((s, i) => s + (useDiscount ? products.find(p=>p.id===i.id).sellPrice * (1 - products.find(p=>p.id===i.id).discount/100) : products.find(p=>p.id===i.id).sellPrice) * i.qty, 0);
-    const items = cart.map(i => ({...i, price: useDiscount ? products.find(p=>p.id===i.id).sellPrice * (1 - products.find(p=>p.id===i.id).discount/100) : products.find(p=>p.id===i.id).sellPrice}));
+
+    let totalAfter = 0;
+    const itemsText = cart.map(i => {
+      const p = products.find(x => x.id === i.id);
+      const price = useDiscount ? p.sellPrice * (1 - p.discount/100) : p.sellPrice;
+      totalAfter += price * i.qty;
+      return `• ${i.name} × ${i.qty} = ${price.toFixed(0)} جنيه`;
+    }).join('%0A');
 
     const saveBtn = document.getElementById('saveOrderBtn');
     const loading = document.getElementById('orderLoading');
     saveBtn.disabled = true;
     loading.style.display = 'block';
+    saveBtn.innerText = "جاري الحفظ والإرسال...";
 
     try {
-      await addDoc(collection(db,"orders"), {
-        customerName: document.getElementById('cname').value.trim(),
-        customerPhone: fullPhone,
-        customerAddress: document.getElementById('caddr').value.trim(),
-        items, totalPrice: totalAfter,
+      await addDoc(collection(db, "orders"), {
+        customerName,
+        customerPhone: '+2' + phone,
+        customerAddress: address,
+        items: cart.map(i => ({
+          ...i,
+          price: useDiscount ? products.find(p=>p.id===i.id).sellPrice * (1-products.find(p=>p.id===i.id).discount/100) : products.find(p=>p.id===i.id).sellPrice
+        })),
+        totalPrice: totalAfter,
         orderStatus: document.getElementById('status').value,
         timestamp: serverTimestamp()
       });
-      for(const i of cart) await updateDoc(doc(db,"products",i.id), {stock: increment(-i.qty)});
-      alert("تم حفظ الطلب بنجاح");
+
+      for (const i of cart) {
+        await updateDoc(doc(db, "products", i.id), { stock: increment(-i.qty) });
+      }
+
+      const message = encodeURIComponent(
+`*طلب جديد من Ashry Natural*
+
+الاسم: ${customerName}
+رقم الواتساب: 0${phone}
+العنوان: ${address}
+
+المنتجات:
+${itemsText.replace(/%0A/g, '\n')}
+
+*الإجمالي: ${totalAfter.toFixed(0)} جنيه*
+
+شكراً لثقتك فينا
+*Ashry Natural - صحتك تهمنا*`
+      );
+
+      const whatsappUrl = `https://wa.me/${fullPhone}?text=${message}`;
+      const waWindow = window.open(whatsappUrl, '_blank');
+
+      if (!waWindow || waWindow.closed || typeof waWindow.closed === 'undefined') {
+        setTimeout(() => {
+          if (confirm("المتصفح منع فتح واتساب تلقائيًا\nاضغط موافق لفتحه يدويًا")) {
+            window.open(whatsappUrl, '_blank');
+          }
+        }, 500);
+      }
+
+      alert("تم حفظ الطلب وفتح واتساب بنجاح!");
       document.getElementById('customerForm').reset();
-      cart = []; renderCart(); document.getElementById('applyDiscount').checked = false;
+      cart = []; renderCart();
+      document.getElementById('applyDiscount').checked = false;
       loadOrders(); loadProducts();
-    } catch(err) { alert("خطأ: " + err.message); }
-    finally {
+
+    } catch (err) {
+      console.error(err);
+      alert("فشل الحفظ: " + err.message);
+    } finally {
       saveBtn.disabled = false;
       loading.style.display = 'none';
+      saveBtn.innerText = "حفظ الطلب وإرسال واتساب";
     }
   };
 
@@ -529,6 +528,29 @@
       </tr>`;
     }).join('') || '<tr><td colspan="7" style="text-align:center;padding:50px;color:#999">لا توجد طلبات</td></tr>';
   }
+
+  window.printInvoice = function(id) {
+    const o = orders.find(x => x.id === id);
+    if (!o) return alert("الطلب مش موجود");
+    document.getElementById('inv_name').textContent = o.customerName;
+    document.getElementById('inv_phone').textContent = o.customerPhone;
+    document.getElementById('inv_addr').textContent = o.customerAddress || "غير محدد";
+    document.getElementById('inv_date').textContent = new Date().toLocaleString('ar-EG');
+    document.getElementById('inv_total').textContent = Number(o.totalPrice).toLocaleString();
+    document.getElementById('inv_items').innerHTML = o.items.map(i => `
+      <tr>
+        <td style="padding:12px;font-weight:bold;border:1px solid #000">${i.name}</td>
+        <td style="padding:12px;border:1px solid #000;text-align:center">${i.qty}</td>
+        <td style="padding:12px;border:1px solid #000;text-align:center">${Number(i.price || 0).toFixed(0)}</td>
+        <td style="padding:12px;border:1px solid #000;text-align:center">${(Number(i.price || 0) * i.qty).toFixed(0)}</td>
+      </tr>
+    `).join('');
+    document.querySelectorAll('.card, .sidebar, #menuBtn').forEach(el => el.style.display = 'none');
+    document.body.style.background = 'white';
+    document.getElementById('invoice').style.display = 'block';
+    setTimeout(() => { window.print(); }, 500);
+    window.onafterprint = () => location.reload();
+  };
 
   window.delOrder = id => confirm("حذف نهائي؟") && deleteDoc(doc(db,'orders',id)).then(loadOrders);
   window.deleteAllOrders = () => confirm("حذف الكل؟") && getDocs(collection(db,"orders")).then(s => { const b = writeBatch(db); s.docs.forEach(d => b.delete(d.ref)); return b.commit(); }).then(loadOrders);
@@ -598,52 +620,80 @@
     reader.readAsArrayBuffer(file);
   };
 
-  window.printInvoice = function(id) {
-  const o = orders.find(x => x.id === id);
-  if (!o) return alert("الطلب مش موجود");
-
-  // 1- ملء بيانات الفاتورة
-  document.getElementById('inv_name').textContent = o.customerName;
-  document.getElementById('inv_phone').textContent = o.customerPhone;
-  document.getElementById('inv_addr').textContent = o.customerAddress || "غير محدد";
-  document.getElementById('inv_date').textContent = new Date().toLocaleString('ar-EG');
-  document.getElementById('inv_total').textContent = Number(o.totalPrice).toLocaleString();
-
-  document.getElementById('inv_items').innerHTML = o.items.map(i => `
-    <tr>
-      <td style="padding:12px;font-weight:bold;border:1px solid #000">${i.name}</td>
-      <td style="padding:12px;border:1px solid #000;text-align:center">${i.qty}</td>
-      <td style="padding:12px;border:1px solid #000;text-align:center">${Number(i.price || 0).toFixed(0)}</td>
-      <td style="padding:12px;border:1px solid #000;text-align:center">${(Number(i.price || 0) * i.qty).toFixed(0)}</td>
-    </tr>
-  `).join('');
-
-  // 2- إخفاء كل الصفحة ما عدا الفاتورة
-  document.querySelectorAll('.card, .sidebar, #menuBtn').forEach(el => el.style.display = 'none');
-  document.body.style.background = 'white';
-  document.body.style.margin = '0';
-  document.body.style.padding = '0';
-
-  const invoice = document.getElementById('invoice');
-  invoice.style.display = 'block';
-  invoice.style.position = 'absolute';
-  invoice.style.left = '0';
-  invoice.style.top = '0';
-  invoice.style.width = '100%';
-  invoice.style.padding = '30px';
-  invoice.style.boxShadow = 'none';
-  invoice.style.background = 'white';
-
-  // 3- أهم حاجة: إجبار المتصفح يرسم الفاتورة كاملة قبل الطباعة
-  setTimeout(() => {
-    window.print();
-  }, 300);   // 300 مللي ثانية كافية جدًا
-
-  // 4- إرجاع الصفحة زي ما كانت بعد الطباعة أو الإلغاء
-  window.onafterprint = () => {
-    location.reload();   // أضمن طريقة ترجع كل حاجة زي ما كانت
+  window.editProduct = id => {
+    const p = products.find(x => x.id === id);
+    document.getElementById('editProductId').value = id;
+    document.getElementById('pname').value = p.name;
+    document.getElementById('pstock').value = p.stock;
+    document.getElementById('psell').value = p.sellPrice;
+    document.getElementById('pdiscount').value = p.discount;
+    if(p.imageUrl) document.getElementById('imagePreview').innerHTML = `<img src="${p.imageUrl}" class="product-img-preview">`;
+    document.getElementById('productSubmitBtn').innerText = "حفظ التعديل";
+    window.showPage('products');
   };
-};
+
+  window.delP = id => confirm("حذف نهائي؟") && deleteDoc(doc(db,"products",id)).then(loadProducts);
+
+  document.getElementById('productForm').onsubmit = async e => {
+    e.preventDefault();
+    const submitBtn = document.getElementById('productSubmitBtn');
+    const loading = document.getElementById('productLoading');
+    submitBtn.disabled = true;
+    loading.style.display = 'block';
+
+    const id = document.getElementById('editProductId').value;
+    let imageUrl = products.find(p => p.id === id)?.imageUrl || '';
+    const file = document.getElementById('pimage').files[0];
+
+    if (file && file.size > 3*1024*1024) {
+      alert("حجم الصورة كبير جدًا! اختر صورة أقل من 3 ميجا");
+      submitBtn.disabled = false;
+      loading.style.display = 'none';
+      return;
+    }
+
+    if (file) {
+      const formData = new FormData();
+      formData.append('image', file);
+      try {
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {method:'POST', body:formData});
+        const json = await res.json();
+        if (json.success) imageUrl = json.data.url;
+        else { alert("فشل رفع الصورة"); submitBtn.disabled = false; loading.style.display = 'none'; return; }
+      } catch { alert("مشكلة في رفع الصورة"); submitBtn.disabled = false; loading.style.display = 'none'; return; }
+    }
+
+    const data = {
+      name: document.getElementById('pname').value.trim(),
+      stock: +document.getElementById('pstock').value,
+      sellPrice: +document.getElementById('psell').value,
+      discount: +document.getElementById('pdiscount').value || 0,
+      imageUrl
+    };
+
+    try {
+      id ? await updateDoc(doc(db,"products",id), data) : await addDoc(collection(db,"products"), data);
+      alert(id ? "تم التعديل بنجاح" : "تم إضافة المنتج بنجاح");
+      e.target.reset();
+      document.getElementById('imagePreview').innerHTML = '';
+      document.getElementById('editProductId').value = '';
+      submitBtn.innerText = "إضافة منتج";
+      loadProducts();
+    } catch (err) { alert("خطأ: " + err.message); }
+    finally {
+      submitBtn.disabled = false;
+      loading.style.display = 'none';
+    }
+  };
+
+  document.getElementById('pimage').onchange = e => {
+    const file = e.target.files[0];
+    if(file){
+      const reader = new FileReader();
+      reader.onload = ev => document.getElementById('imagePreview').innerHTML = `<img src="${ev.target.result}" class="product-img-preview">`;
+      reader.readAsDataURL(file);
+    }
+  };
 </script>
 </body>
 </html>
