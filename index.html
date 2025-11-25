@@ -165,7 +165,7 @@
     </form>
     <div class="discount-toggle">
       <label class="switch">
-        <input type="checkbox" id="applyDiscount" onchange="renderCart()">
+        <input type="checkbox" id="applyDiscount">
         <span class="slider"></span>
       </label>
       <span>تفعيل الخصم على كل المنتجات في هذا الطلب</span>
@@ -179,11 +179,11 @@
         <select id="prodSelect" size="8" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:99;background:#fff;border:1px solid #ddd;border-radius:12px;max-height:300px;overflow-y:auto"></select>
       </div>
       <input type="number" id="qtyInput" value="1" min="1">
-      <button type="button" onclick="window.addToCart()" class="success">إضافة</button>
+      <button type="button" id="addToCartBtn" class="success">إضافة</button>
     </div>
     <div id="cartItems" style="margin:20px 0"></div>
     <div class="cart-total" id="cartTotal">الإجمالي: 0 جنيه</div>
-    <button onclick="window.saveOrder()" id="saveOrderBtn" style="margin-top:20px;padding:18px;font-size:18px">حفظ الطلب وإرسال واتساب</button>
+    <button id="saveOrderBtn" style="margin-top:20px;padding:18px;font-size:18px">حفظ الطلب وإرسال واتساب</button>
     <div id="orderLoading" class="loading">جاري الحفظ والإرسال...</div>
   </div>
 
@@ -202,7 +202,7 @@
     </form>
     <div class="discount-toggle">
       <label class="switch">
-        <input type="checkbox" id="editApplyDiscount" onchange="renderEditCart()">
+        <input type="checkbox" id="editApplyDiscount">
         <span class="slider"></span>
       </label>
       <span>تفعيل الخصم على كل المنتجات في هذا الطلب</span>
@@ -216,21 +216,21 @@
         <select id="editProdSelect" size="8" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:99;background:#fff;border:1px solid #ddd;border-radius:12px;max-height:300px;overflow-y:auto"></select>
       </div>
       <input type="number" id="editQtyInput" value="1" min="1">
-      <button type="button" onclick="window.addToEditCart()" class="success">إضافة</button>
+      <button type="button" id="addToEditCartBtn" class="success">إضافة</button>
     </div>
     <div id="editCartItems" style="margin:20px 0"></div>
     <div class="cart-total" id="editCartTotal">الإجمالي: 0 جنيه</div>
-    <button onclick="window.updateOrder()" id="updateOrderBtn" style="margin-top:20px;padding:18px;font-size:18px">تحديث الطلب</button>
+    <button id="updateOrderBtn" style="margin-top:20px;padding:18px;font-size:18px">تحديث الطلب</button>
     <div id="editOrderLoading" class="loading">جاري تحديث الطلب...</div>
   </div>
 
   <div id="orders" class="card" style="display:none">
     <h2>جميع الطلبات</h2>
     <div style="margin:20px 0">
-      <button class="success export-btn" onclick="window.exportOrdersToExcel()">تصدير إلى إكسيل</button>
-      <button class="danger export-btn" onclick="window.deleteAllOrders()">حذف كل الطلبات</button>
+      <button class="success export-btn" id="exportOrdersBtn">تصدير إلى إكسيل</button>
+      <button class="danger export-btn" id="deleteAllOrdersBtn">حذف كل الطلبات</button>
     </div>
-    <input type="text" id="searchOrders" placeholder="بحث..." oninput="renderOrders()">
+    <input type="text" id="searchOrders" placeholder="بحث...">
     <table>
       <thead><tr>
         <th>العميل</th><th>التليفون</th><th>المنتجات</th><th>الإجمالي</th><th>الحالة</th><th>التاريخ</th><th>إجراءات</th>
@@ -242,15 +242,15 @@
   <div id="products" class="card" style="display:none">
     <h2>إدارة المنتجات</h2>
     <div style="margin:20px 0; text-align:center;">
-      <button class="success export-btn" onclick="window.exportProductsToExcel()">تصدير إلى إكسيل</button>
-      <button class="danger export-btn" onclick="window.deleteAllProducts()">حذف كل المنتجات</button>
-      <button class="orange export-btn" onclick="document.getElementById('importExcel').click()">استيراد من إكسل</button>
-      <input type="file" id="importExcel" accept=".xlsx,.xls" onchange="window.importProductsFromExcel(event)" style="display:none;">
+      <button class="success export-btn" id="exportProductsBtn">تصدير إلى إكسيل</button>
+      <button class="danger export-btn" id="deleteAllProductsBtn">حذف كل المنتجات</button>
+      <button class="orange export-btn" id="importExcelBtn">استيراد من إكسل</button>
+      <input type="file" id="importExcel" accept=".xlsx,.xls" style="display:none;">
       <div style="margin-top:12px; color:#555; font-size:14px;">
         الأعمدة المطلوبة: <strong>اسم المنتج | الكمية | سعر البيع | الخصم % | رابط الصورة (اختياري)</strong>
       </div>
     </div>
-    <input type="text" id="searchProducts" placeholder="بحث عن منتج..." oninput="renderProducts()">
+    <input type="text" id="searchProducts" placeholder="بحث عن منتج...">
     <form id="productForm" style="background:#f9f9f9;padding:25px;border-radius:16px;margin:25px 0">
       <input type="hidden" id="editProductId">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px">
@@ -293,6 +293,121 @@
   const IMGBB_API_KEY = "6e0b6ad4c71f839987c098fe183beca5";
 
   let products = [], orders = [], cart = [], editCart = [];
+
+  // تعريف الدوال في النطاق العالمي
+  window.renderCart = function() {
+    const useDiscount = document.getElementById('applyDiscount').checked;
+    let total = 0;
+    let html = '';
+    
+    if (cart.length === 0) {
+      html = '<p style="text-align:center;color:#999;margin:50px 0;font-size:18px;">السلة فارغة، ابدأ بإضافة منتجات</p>';
+    } else {
+      cart.forEach((item, index) => {
+        const p = products.find(x => x.id === item.id);
+        if (!p) return;
+        
+        // التصحيح: حساب السعر بعد الخصم بشكل صحيح
+        let price;
+        if (useDiscount) {
+          // تطبيق الخصم على سعر المنتج الحالي
+          price = p.sellPrice * (1 - (p.discount || 0)/100);
+        } else {
+          // استخدام السعر الأصلي المحفوظ أو سعر البيع الحالي
+          price = item.originalPrice || p.sellPrice;
+        }
+        
+        const itemTotal = price * item.qty;
+        total += itemTotal;
+        
+        html += `
+          <div class="cart-item" style="position:relative;padding-left:60px;padding-right:15px;min-height:90px;">
+            <button onclick="window.removeFromCart(${index})"
+                    style="position:absolute;left:10px;top:50%;transform:translateY(-50%);
+                           background:#e74c3c;color:white;width:40px;height:40px;
+                           border:none;border-radius:50%;cursor:pointer;font-size:16px;
+                           box-shadow:0 2px 10px rgba(231,76,60,0.3);z-index:10;">
+              <i class="fas fa-trash"></i>
+            </button>
+            ${item.imageUrl ?
+              `<img src="${item.imageUrl}" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;object-fit:cover;border-radius:8px;">`
+              : '<div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;background:#eee;border-radius:8px;"></div>'}
+            <div style="padding:15px 80px 15px 10px;">
+              <div style="font-weight:bold;font-size:18px;margin-bottom:8px;">${item.name}</div>
+              <div style="color:#555;margin-bottom:8px;">الكمية: <strong>${item.qty}</strong></div>
+              <div style="color:#666;margin-bottom:4px;font-size:14px;">سعر الوحدة: ${price.toFixed(0)} ج</div>
+              ${useDiscount && p.discount > 0 ? `<div style="color:#e67e22;font-weight:bold;font-size:14px;">تم تطبيق خصم ${p.discount}%</div>` : ''}
+              <div style="font-size:20px;color:#1e3c72;margin-top:10px;font-weight:bold;">
+                ${itemTotal.toFixed(0)} جنيه
+              </div>
+            </div>
+          </div>`;
+      });
+    }
+    
+    document.getElementById('cartItems').innerHTML = html;
+    document.getElementById('cartTotal').innerHTML = `
+      <div style="background:linear-gradient(135deg,#1e3c72,#2a5298);color:white;padding:25px;border-radius:16px;text-align:center;font-size:28px;font-weight:900;box-shadow:0 8px 25px rgba(30,60,114,0.3);margin:20px 0;">
+        الإجمالي: ${total.toFixed(0)} جنيه مصري
+      </div>`;
+  };
+
+  window.renderEditCart = function() {
+    const useDiscount = document.getElementById('editApplyDiscount').checked;
+    let total = 0;
+    let html = '';
+    
+    if (editCart.length === 0) {
+      html = '<p style="text-align:center;color:#999;margin:50px 0;font-size:18px;">السلة فارغة، ابدأ بإضافة منتجات</p>';
+    } else {
+      editCart.forEach((item, index) => {
+        const p = products.find(x => x.id === item.id);
+        if (!p) return;
+        
+        // التصحيح: حساب السعر بعد الخصم بشكل صحيح
+        let price;
+        if (useDiscount) {
+          // تطبيق الخصم على سعر المنتج الحالي
+          price = p.sellPrice * (1 - (p.discount || 0)/100);
+        } else {
+          // استخدام السعر الأصلي المحفوظ أو سعر البيع الحالي
+          price = item.originalPrice || p.sellPrice;
+        }
+        
+        const itemTotal = price * item.qty;
+        total += itemTotal;
+        
+        html += `
+          <div class="cart-item" style="position:relative;padding-left:60px;padding-right:15px;min-height:90px;">
+            <button onclick="window.removeFromEditCart(${index})"
+                    style="position:absolute;left:10px;top:50%;transform:translateY(-50%);
+                           background:#e74c3c;color:white;width:40px;height:40px;
+                           border:none;border-radius:50%;cursor:pointer;font-size:16px;
+                           box-shadow:0 2px 10px rgba(231,76,60,0.3);z-index:10;">
+              <i class="fas fa-trash"></i>
+            </button>
+            ${item.imageUrl ?
+              `<img src="${item.imageUrl}" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;object-fit:cover;border-radius:8px;">`
+              : '<div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;background:#eee;border-radius:8px;"></div>'}
+            <div style="padding:15px 80px 15px 10px;">
+              <div style="font-weight:bold;font-size:18px;margin-bottom:8px;">${item.name}</div>
+              <div style="color:#555;margin-bottom:8px;">الكمية: <strong>${item.qty}</strong></div>
+              <div style="color:#666;margin-bottom:4px;font-size:14px;">سعر الوحدة: ${price.toFixed(0)} ج</div>
+              ${useDiscount && p.discount > 0 ? `<div style="color:#e67e22;font-weight:bold;font-size:14px;">تم تطبيق خصم ${p.discount}%</div>` : ''}
+              <div style="font-size:20px;color:#1e3c72;margin-top:10px;font-weight:bold;">
+                ${itemTotal.toFixed(0)} جنيه
+              </div>
+            </div>
+          </div>`;
+      });
+    }
+    
+    document.getElementById('editCartItems').innerHTML = html;
+    document.getElementById('editCartTotal').innerHTML = `
+      <div style="background:linear-gradient(135deg,#1e3c72,#2a5298);color:white;padding:25px;border-radius:16px;text-align:center;font-size:28px;font-weight:900;box-shadow:0 8px 25px rgba(30,60,114,0.3);margin:20px 0;">
+        الإجمالي: ${total.toFixed(0)} جنيه مصري
+      </div>`;
+  };
 
   window.showPage = function(s) {
     document.querySelectorAll('.card:not(#login), #invoice').forEach(el => el.style.display = 'none');
@@ -358,7 +473,7 @@
     const term = (document.getElementById('searchProducts')?.value || '').toLowerCase();
     const filtered = products.filter(p => p.name.toLowerCase().includes(term));
     document.getElementById('productsList').innerHTML = filtered.map(p => {
-      const priceAfter = p.sellPrice * (1 - p.discount/100);
+      const priceAfter = p.sellPrice * (1 - (p.discount || 0)/100);
       return `<tr>
         <td>${p.imageUrl ? `<img src="${p.imageUrl}" class="product-img-table">` : 'لا صورة'}</td>
         <td><strong>${p.name}</strong></td>
@@ -463,114 +578,6 @@
     select.style.display = 'none';
   };
 
-  function renderCart() {
-    const useDiscount = document.getElementById('applyDiscount').checked;
-    let total = 0;
-    let html = '';
-    
-    if (cart.length === 0) {
-      html = '<p style="text-align:center;color:#999;margin:50px 0;font-size:18px;">السلة فارغة، ابدأ بإضافة منتجات</p>';
-    } else {
-      cart.forEach((item, index) => {
-        const p = products.find(x => x.id === item.id);
-        if (!p) return;
-        
-        let price;
-        if (useDiscount) {
-          price = p.sellPrice * (1 - p.discount/100);
-        } else {
-          price = item.originalPrice || p.sellPrice;
-        }
-        
-        const itemTotal = price * item.qty;
-        total += itemTotal;
-        
-        html += `
-          <div class="cart-item" style="position:relative;padding-left:60px;padding-right:15px;min-height:90px;">
-            <button onclick="removeFromCart(${index})"
-                    style="position:absolute;left:10px;top:50%;transform:translateY(-50%);
-                           background:#e74c3c;color:white;width:40px;height:40px;
-                           border:none;border-radius:50%;cursor:pointer;font-size:16px;
-                           box-shadow:0 2px 10px rgba(231,76,60,0.3);z-index:10;">
-              <i class="fas fa-trash"></i>
-            </button>
-            ${item.imageUrl ?
-              `<img src="${item.imageUrl}" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;object-fit:cover;border-radius:8px;">`
-              : '<div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;background:#eee;border-radius:8px;"></div>'}
-            <div style="padding:15px 80px 15px 10px;">
-              <div style="font-weight:bold;font-size:18px;margin-bottom:8px;">${item.name}</div>
-              <div style="color:#555;margin-bottom:8px;">الكمية: <strong>${item.qty}</strong></div>
-              <div style="color:#666;margin-bottom:4px;font-size:14px;">سعر الوحدة: ${price.toFixed(0)} ج</div>
-              ${useDiscount && p.discount > 0 ? `<div style="color:#e67e22;font-weight:bold;font-size:14px;">تم تطبيق خصم ${p.discount}%</div>` : ''}
-              <div style="font-size:20px;color:#1e3c72;margin-top:10px;font-weight:bold;">
-                ${itemTotal.toFixed(0)} جنيه
-              </div>
-            </div>
-          </div>`;
-      });
-    }
-    
-    document.getElementById('cartItems').innerHTML = html;
-    document.getElementById('cartTotal').innerHTML = `
-      <div style="background:linear-gradient(135deg,#1e3c72,#2a5298);color:white;padding:25px;border-radius:16px;text-align:center;font-size:28px;font-weight:900;box-shadow:0 8px 25px rgba(30,60,114,0.3);margin:20px 0;">
-        الإجمالي: ${total.toFixed(0)} جنيه مصري
-      </div>`;
-  }
-
-  function renderEditCart() {
-    const useDiscount = document.getElementById('editApplyDiscount').checked;
-    let total = 0;
-    let html = '';
-    
-    if (editCart.length === 0) {
-      html = '<p style="text-align:center;color:#999;margin:50px 0;font-size:18px;">السلة فارغة، ابدأ بإضافة منتجات</p>';
-    } else {
-      editCart.forEach((item, index) => {
-        const p = products.find(x => x.id === item.id);
-        if (!p) return;
-        
-        let price;
-        if (useDiscount) {
-          price = p.sellPrice * (1 - p.discount/100);
-        } else {
-          price = item.originalPrice || p.sellPrice;
-        }
-        
-        const itemTotal = price * item.qty;
-        total += itemTotal;
-        
-        html += `
-          <div class="cart-item" style="position:relative;padding-left:60px;padding-right:15px;min-height:90px;">
-            <button onclick="removeFromEditCart(${index})"
-                    style="position:absolute;left:10px;top:50%;transform:translateY(-50%);
-                           background:#e74c3c;color:white;width:40px;height:40px;
-                           border:none;border-radius:50%;cursor:pointer;font-size:16px;
-                           box-shadow:0 2px 10px rgba(231,76,60,0.3);z-index:10;">
-              <i class="fas fa-trash"></i>
-            </button>
-            ${item.imageUrl ?
-              `<img src="${item.imageUrl}" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;object-fit:cover;border-radius:8px;">`
-              : '<div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;background:#eee;border-radius:8px;"></div>'}
-            <div style="padding:15px 80px 15px 10px;">
-              <div style="font-weight:bold;font-size:18px;margin-bottom:8px;">${item.name}</div>
-              <div style="color:#555;margin-bottom:8px;">الكمية: <strong>${item.qty}</strong></div>
-              <div style="color:#666;margin-bottom:4px;font-size:14px;">سعر الوحدة: ${price.toFixed(0)} ج</div>
-              ${useDiscount && p.discount > 0 ? `<div style="color:#e67e22;font-weight:bold;font-size:14px;">تم تطبيق خصم ${p.discount}%</div>` : ''}
-              <div style="font-size:20px;color:#1e3c72;margin-top:10px;font-weight:bold;">
-                ${itemTotal.toFixed(0)} جنيه
-              </div>
-            </div>
-          </div>`;
-      });
-    }
-    
-    document.getElementById('editCartItems').innerHTML = html;
-    document.getElementById('editCartTotal').innerHTML = `
-      <div style="background:linear-gradient(135deg,#1e3c72,#2a5298);color:white;padding:25px;border-radius:16px;text-align:center;font-size:28px;font-weight:900;box-shadow:0 8px 25px rgba(30,60,114,0.3);margin:20px 0;">
-        الإجمالي: ${total.toFixed(0)} جنيه مصري
-      </div>`;
-  }
-
   window.removeFromCart = function(index) {
     if (confirm("هل تريد حذف هذا المنتج من السلة؟")) {
       cart.splice(index, 1);
@@ -597,7 +604,15 @@
     
     const itemsWithPrice = cart.map(i => {
       const p = products.find(x => x.id === i.id);
-      const price = useDiscount ? p.sellPrice * (1 - p.discount/100) : p.sellPrice;
+      
+      // التصحيح: حساب السعر بعد الخصم بشكل صحيح
+      let price;
+      if (useDiscount) {
+        price = p.sellPrice * (1 - (p.discount || 0)/100);
+      } else {
+        price = i.originalPrice || p.sellPrice;
+      }
+      
       totalAfter += price * i.qty;
       return {
         ...i,
@@ -620,7 +635,8 @@
         items: itemsWithPrice,
         totalPrice: totalAfter,
         orderStatus: document.getElementById('status').value,
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        appliedDiscount: useDiscount // حفظ حالة تفعيل الخصم
       });
       for (const i of cart) {
         await updateDoc(doc(db, "products", i.id), { stock: increment(-i.qty) });
@@ -710,6 +726,9 @@ ${itemsText.replace(/%0A/g, '\n')}
       originalPrice: item.price || products.find(p => p.id === item.id)?.sellPrice || 0
     }));
     
+    // تعيين حالة تفعيل الخصم بناءً على البيانات المحفوظة
+    document.getElementById('editApplyDiscount').checked = order.appliedDiscount || false;
+    
     renderEditCart();
     
     // إظهار صفحة التعديل
@@ -736,7 +755,7 @@ ${itemsText.replace(/%0A/g, '\n')}
       
       if (useDiscount) {
         // استخدام السعر بعد الخصم
-        price = p.sellPrice * (1 - p.discount/100);
+        price = p.sellPrice * (1 - (p.discount || 0)/100);
       } else {
         // استخدام السعر الأصلي المحفوظ أو سعر البيع الحالي
         price = i.originalPrice || p.sellPrice;
@@ -771,6 +790,7 @@ ${itemsText.replace(/%0A/g, '\n')}
         items: itemsWithPrice,
         totalPrice: totalAfter,
         orderStatus: orderStatus,
+        appliedDiscount: useDiscount, // حفظ حالة تفعيل الخصم
         updatedAt: serverTimestamp()
       });
       
@@ -954,6 +974,31 @@ ${itemsText.replace(/%0A/g, '\n')}
       reader.readAsDataURL(file);
     }
   };
+
+  // إضافة مستمعي الأحداث بعد تحميل الصفحة
+  document.addEventListener('DOMContentLoaded', function() {
+    // مستمعي أحداث تفعيل الخصم
+    document.getElementById('applyDiscount').addEventListener('change', window.renderCart);
+    document.getElementById('editApplyDiscount').addEventListener('change', window.renderEditCart);
+    
+    // مستمعي أحداث الأزرار
+    document.getElementById('addToCartBtn').addEventListener('click', window.addToCart);
+    document.getElementById('addToEditCartBtn').addEventListener('click', window.addToEditCart);
+    document.getElementById('saveOrderBtn').addEventListener('click', window.saveOrder);
+    document.getElementById('updateOrderBtn').addEventListener('click', window.updateOrder);
+    document.getElementById('exportOrdersBtn').addEventListener('click', window.exportOrdersToExcel);
+    document.getElementById('exportProductsBtn').addEventListener('click', window.exportProductsToExcel);
+    document.getElementById('deleteAllOrdersBtn').addEventListener('click', window.deleteAllOrders);
+    document.getElementById('deleteAllProductsBtn').addEventListener('click', window.deleteAllProducts);
+    document.getElementById('importExcelBtn').addEventListener('click', function() {
+      document.getElementById('importExcel').click();
+    });
+    document.getElementById('importExcel').addEventListener('change', window.importProductsFromExcel);
+    
+    // مستمعي أحداث البحث
+    document.getElementById('searchOrders').addEventListener('input', renderOrders);
+    document.getElementById('searchProducts').addEventListener('input', renderProducts);
+  });
 </script>
 
 </body>
