@@ -1255,6 +1255,7 @@
     loadProductsForEditCart();
   }
 
+  // إضافة دالة renderProducts المفقودة
   function renderProducts() {
     const term = (document.getElementById('searchProducts')?.value || '').toLowerCase();
     const filtered = products.filter(p => p.name.toLowerCase().includes(term) || (p.barcode && p.barcode.toLowerCase().includes(term)));
