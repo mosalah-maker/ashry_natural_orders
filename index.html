@@ -7,6 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
   <style>
     :root{--p:#1e3c72;--s:#2a5298;--d:#e74c3c;--g:#27ae60;--o:#f39c12;--l:#f8fbff}
     *{margin:0;padding:0;box-sizing:border-box;font-family:'Tajawal',sans-serif}
@@ -56,6 +57,24 @@
     .product-img-table{width:60px;height:60px;object-fit:cover;border-radius:8px}
     .loading{color:#1976d2;font-weight:bold;text-align:center;margin:20px 0;font-size:18px;display:none}
     .remove-item-btn{position:absolute;left:10px;top:50%;transform:translateY(-50%);background:#e74c3c;color:white;padding:8px 12px;border-radius:8px;font-size:14px;cursor:pointer}
+    
+    /* أنماط جديدة للباركود */
+    .barcode-section{margin:20px 0;padding:20px;background:#f8f9fa;border-radius:12px;border:2px dashed #ddd}
+    .barcode-container{position:relative;width:100%;max-width:500px;margin:0 auto}
+    .barcode-scanner{width:100%;height:300px;background:#000;border-radius:12px;object-fit:cover}
+    .barcode-overlay{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);color:white;font-size:18px;border-radius:12px}
+    .barcode-controls{display:flex;gap:10px;margin-top:15px;justify-content:center}
+    .barcode-controls button{width:auto;padding:10px 20px}
+    .barcode-result{background:#e8f5e8;padding:15px;border-radius:12px;margin-top:15px;text-align:center;display:none}
+    .barcode-result.success{background:#e8f5e8;color:#27ae60}
+    .barcode-result.error{background:#ffeaea;color:#e74c3c}
+    .barcode-toggle{display:flex;align-items:center;gap:10px;margin-bottom:15px;cursor:pointer;padding:10px;background:#fff;border-radius:8px}
+    .barcode-toggle i{transition:transform 0.3s}
+    .barcode-toggle.active i{transform:rotate(180deg)}
+    .barcode-input-group{display:flex;gap:10px;align-items:center;margin-top:10px}
+    .barcode-input-group input{flex:1;margin:0}
+    .barcode-input-group button{width:auto;padding:10px 15px}
+    
     @media(max-width:992px){
       .sidebar{transform:translateX(100%);width:280px}
       .sidebar.active{transform:translateX(0)}
@@ -72,6 +91,10 @@
       th,td{padding:10px 6px}
       .export-btn,.action-btns button{width:100%;margin:6px 0;display:block}
       .discount-toggle{flex-direction:column;align-items:flex-start}
+      .barcode-controls{flex-direction:column}
+      .barcode-controls button{width:100%}
+      .barcode-input-group{flex-direction:column}
+      .barcode-input-group button{width:100%}
     }
     #invoice{display:none;background:white;padding:30px;border:2px solid #333;border-radius:12px;max-width:800px;margin:20px auto;box-shadow:0 0 30px rgba(0,0,0,.3);font-size:18px}
     .invoice-header{text-align:center;margin-bottom:30px}
@@ -171,10 +194,48 @@
       <span>تفعيل الخصم على كل المنتجات في هذا الطلب</span>
     </div>
     <hr style="margin:30px 0">
+    
+    <!-- قسم الباركود -->
+    <div class="barcode-section">
+      <div class="barcode-toggle" id="barcodeToggle">
+        <i class="fas fa-barcode"></i>
+        <span style="font-weight:bold">مسح الباركود بالكاميرا</span>
+        <i class="fas fa-chevron-down" style="margin-right:auto"></i>
+      </div>
+      
+      <div id="barcodeContent" style="display:none">
+        <div class="barcode-container">
+          <video id="barcode-scanner" class="barcode-scanner"></video>
+          <div class="barcode-overlay" id="barcodeOverlay">
+            اضغط على تشغيل الكاميرا لبدء المسح
+          </div>
+        </div>
+        
+        <div class="barcode-controls">
+          <button id="startScanner" class="success">
+            <i class="fas fa-camera"></i> تشغيل الكاميرا
+          </button>
+          <button id="stopScanner" class="danger" disabled>
+            <i class="fas fa-stop"></i> إيقاف الكاميرا
+          </button>
+          <button id="switchCamera" class="orange">
+            <i class="fas fa-sync-alt"></i> تبديل الكاميرا
+          </button>
+        </div>
+        
+        <div id="barcodeResult" class="barcode-result"></div>
+        
+        <div style="text-align:center;margin-top:15px;color:#666;font-size:14px">
+          <i class="fas fa-info-circle"></i>
+          قم بتوجيه الكاميرا نحو الباركود وسيتم التعرف عليه تلقائياً
+        </div>
+      </div>
+    </div>
+    
     <h3>إضافة منتجات</h3>
     <div style="display:grid;grid-template-columns:1fr 120px auto;gap:15px;align-items:end">
       <div class="searchable-select">
-        <input type="text" id="prodSearch" placeholder="اكتب اسم المنتج..." autocomplete="off">
+        <input type="text" id="prodSearch" placeholder="اكتب اسم المنتج أو الباركود..." autocomplete="off">
         <i class="fas fa-search"></i>
         <select id="prodSelect" size="8" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:99;background:#fff;border:1px solid #ddd;border-radius:12px;max-height:300px;overflow-y:auto"></select>
       </div>
@@ -247,10 +308,55 @@
       <button class="orange export-btn" id="importExcelBtn">استيراد من إكسل</button>
       <input type="file" id="importExcel" accept=".xlsx,.xls" style="display:none;">
       <div style="margin-top:12px; color:#555; font-size:14px;">
-        الأعمدة المطلوبة: <strong>اسم المنتج | الكمية | سعر البيع | الخصم % | رابط الصورة (اختياري)</strong>
+        الأعمدة المطلوبة: <strong>اسم المنتج | الكمية | سعر البيع | الخصم % | رابط الصورة (اختياري) | الباركود (اختياري)</strong>
       </div>
     </div>
     <input type="text" id="searchProducts" placeholder="بحث عن منتج...">
+    
+    <!-- قسم الباركود في صفحة المنتجات -->
+    <div class="barcode-section">
+      <div class="barcode-toggle" id="productBarcodeToggle">
+        <i class="fas fa-barcode"></i>
+        <span style="font-weight:bold">مسح الباركود للمنتج بالكاميرا</span>
+        <i class="fas fa-chevron-down" style="margin-right:auto"></i>
+      </div>
+      
+      <div id="productBarcodeContent" style="display:none">
+        <div class="barcode-container">
+          <video id="product-barcode-scanner" class="barcode-scanner"></video>
+          <div class="barcode-overlay" id="productBarcodeOverlay">
+            اضغط على تشغيل الكاميرا لبدء مسح الباركود للمنتج
+          </div>
+        </div>
+        
+        <div class="barcode-controls">
+          <button id="startProductScanner" class="success">
+            <i class="fas fa-camera"></i> تشغيل الكاميرا
+          </button>
+          <button id="stopProductScanner" class="danger" disabled>
+            <i class="fas fa-stop"></i> إيقاف الكاميرا
+          </button>
+          <button id="switchProductCamera" class="orange">
+            <i class="fas fa-sync-alt"></i> تبديل الكاميرا
+          </button>
+        </div>
+        
+        <div class="barcode-input-group">
+          <input type="text" id="scannedBarcode" placeholder="سيظهر الباركود هنا تلقائياً..." readonly>
+          <button type="button" id="applyBarcode" class="success" disabled>
+            <i class="fas fa-check"></i> تطبيق الباركود
+          </button>
+        </div>
+        
+        <div id="productBarcodeResult" class="barcode-result"></div>
+        
+        <div style="text-align:center;margin-top:15px;color:#666;font-size:14px">
+          <i class="fas fa-info-circle"></i>
+          قم بمسح الباركود ثم اضغط على "تطبيق الباركود" لإضافته للمنتج
+        </div>
+      </div>
+    </div>
+    
     <form id="productForm" style="background:#f9f9f9;padding:25px;border-radius:16px;margin:25px 0">
       <input type="hidden" id="editProductId">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px">
@@ -258,6 +364,12 @@
         <input type="number" placeholder="الكمية" id="pstock" required>
         <input type="number" placeholder="سعر البيع" id="psell" required>
         <input type="number" placeholder="الخصم %" id="pdiscount" min="0" max="100" value="0">
+        <div class="barcode-input-group">
+          <input placeholder="كود الباركود" id="pbarcode">
+          <button type="button" id="scanBarcodeForProduct" class="orange">
+            <i class="fas fa-camera"></i> مسح
+          </button>
+        </div>
         <input type="file" id="pimage" accept="image/*">
         <div id="imagePreview"></div>
       </div>
@@ -266,7 +378,7 @@
     </form>
     <table>
       <thead><tr>
-        <th>صورة</th><th>المنتج</th><th>المتوفر</th><th>سعر البيع</th><th>الخصم %</th><th>السعر بعد الخصم</th><th>إجراءات</th>
+        <th>صورة</th><th>المنتج</th><th>المتوفر</th><th>سعر البيع</th><th>الخصم %</th><th>السعر بعد الخصم</th><th>الباركود</th><th>إجراءات</th>
       </tr></thead>
       <tbody id="productsList"></tbody>
     </table>
@@ -293,6 +405,11 @@
   const IMGBB_API_KEY = "6e0b6ad4c71f839987c098fe183beca5";
 
   let products = [], orders = [], cart = [], editCart = [];
+  let currentStream = null;
+  let productStream = null;
+  let currentFacingMode = 'environment';
+  let productFacingMode = 'environment';
+  let scannedBarcodeValue = '';
 
   // تعريف الدوال في النطاق العالمي
   window.renderCart = function() {
@@ -307,13 +424,10 @@
         const p = products.find(x => x.id === item.id);
         if (!p) return;
         
-        // التصحيح: حساب السعر بعد الخصم بشكل صحيح
         let price;
         if (useDiscount) {
-          // تطبيق الخصم على سعر المنتج الحالي
           price = p.sellPrice * (1 - (p.discount || 0)/100);
         } else {
-          // استخدام السعر الأصلي المحفوظ أو سعر البيع الحالي
           price = item.originalPrice || p.sellPrice;
         }
         
@@ -364,13 +478,10 @@
         const p = products.find(x => x.id === item.id);
         if (!p) return;
         
-        // التصحيح: حساب السعر بعد الخصم بشكل صحيح
         let price;
         if (useDiscount) {
-          // تطبيق الخصم على سعر المنتج الحالي
           price = p.sellPrice * (1 - (p.discount || 0)/100);
         } else {
-          // استخدام السعر الأصلي المحفوظ أو سعر البيع الحالي
           price = item.originalPrice || p.sellPrice;
         }
         
@@ -409,19 +520,362 @@
       </div>`;
   };
 
+  // دوال الباركود للطلبات
+  window.startBarcodeScanner = async function() {
+    const video = document.getElementById('barcode-scanner');
+    const overlay = document.getElementById('barcodeOverlay');
+    const startBtn = document.getElementById('startScanner');
+    const stopBtn = document.getElementById('stopScanner');
+    
+    try {
+      overlay.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تشغيل الكاميرا...';
+      
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: currentFacingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      });
+      
+      currentStream = stream;
+      video.srcObject = stream;
+      
+      await video.play();
+      
+      overlay.style.display = 'none';
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      
+      // تهيئة Quagga للتعرف على الباركود
+      Quagga.init({
+        inputStream: {
+          name: "Live",
+          type: "LiveStream",
+          target: video,
+          constraints: {
+            width: 1280,
+            height: 720,
+            facingMode: currentFacingMode
+          }
+        },
+        decoder: {
+          readers: [
+            "code_128_reader",
+            "ean_reader",
+            "ean_8_reader",
+            "code_39_reader",
+            "upc_reader",
+            "upc_e_reader"
+          ]
+        }
+      }, function(err) {
+        if (err) {
+          console.error('خطأ في تهيئة Quagga:', err);
+          overlay.innerHTML = 'خطأ في تشغيل الماسح الضوئي';
+          overlay.style.display = 'flex';
+          return;
+        }
+        
+        Quagga.start();
+        console.log('Quagga started successfully');
+      });
+      
+      Quagga.onDetected(function(result) {
+        const code = result.codeResult.code;
+        console.log('تم التعرف على الباركود:', code);
+        
+        // إيقاف المسح بعد التعرف على الباركود
+        Quagga.stop();
+        
+        // البحث عن المنتج باستخدام الباركود
+        const product = products.find(p => p.barcode === code);
+        
+        if (product) {
+          showBarcodeResult(`تم التعرف على المنتج: ${product.name}`, true);
+          
+          // إضافة المنتج تلقائياً إلى السلة
+          setTimeout(() => {
+            addProductToCartByBarcode(product.id);
+          }, 1500);
+        } else {
+          showBarcodeResult(`لم يتم العثور على منتج بالباركود: ${code}`, false);
+        }
+      });
+      
+    } catch (error) {
+      console.error('خطأ في تشغيل الكاميرا:', error);
+      overlay.innerHTML = 'خطأ في تشغيل الكاميرا. تأكد من السماح باستخدام الكاميرا.';
+      overlay.style.display = 'flex';
+    }
+  };
+
+  window.stopBarcodeScanner = function() {
+    const video = document.getElementById('barcode-scanner');
+    const overlay = document.getElementById('barcodeOverlay');
+    const startBtn = document.getElementById('startScanner');
+    const stopBtn = document.getElementById('stopScanner');
+    
+    if (currentStream) {
+      currentStream.getTracks().forEach(track => track.stop());
+      currentStream = null;
+    }
+    
+    if (video.srcObject) {
+      video.srcObject = null;
+    }
+    
+    Quagga.stop();
+    
+    overlay.innerHTML = 'اضغط على تشغيل الكاميرا لبدء المسح';
+    overlay.style.display = 'flex';
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+  };
+
+  window.switchCamera = function() {
+    // إيقاف الكاميرا الحالية
+    window.stopBarcodeScanner();
+    
+    // تبديل نوع الكاميرا
+    currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+    
+    // إعادة تشغيل الكاميرا بالنوع الجديد
+    setTimeout(() => {
+      window.startBarcodeScanner();
+    }, 500);
+  };
+
+  // دوال الباركود للمنتجات
+  window.startProductBarcodeScanner = async function() {
+    const video = document.getElementById('product-barcode-scanner');
+    const overlay = document.getElementById('productBarcodeOverlay');
+    const startBtn = document.getElementById('startProductScanner');
+    const stopBtn = document.getElementById('stopProductScanner');
+    const applyBtn = document.getElementById('applyBarcode');
+    
+    try {
+      overlay.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تشغيل الكاميرا...';
+      
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: productFacingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      });
+      
+      productStream = stream;
+      video.srcObject = stream;
+      
+      await video.play();
+      
+      overlay.style.display = 'none';
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      applyBtn.disabled = true;
+      
+      // تهيئة Quagga للتعرف على الباركود
+      Quagga.init({
+        inputStream: {
+          name: "Live",
+          type: "LiveStream",
+          target: video,
+          constraints: {
+            width: 1280,
+            height: 720,
+            facingMode: productFacingMode
+          }
+        },
+        decoder: {
+          readers: [
+            "code_128_reader",
+            "ean_reader",
+            "ean_8_reader",
+            "code_39_reader",
+            "upc_reader",
+            "upc_e_reader"
+          ]
+        }
+      }, function(err) {
+        if (err) {
+          console.error('خطأ في تهيئة Quagga:', err);
+          overlay.innerHTML = 'خطأ في تشغيل الماسح الضوئي';
+          overlay.style.display = 'flex';
+          return;
+        }
+        
+        Quagga.start();
+        console.log('Quagga for products started successfully');
+      });
+      
+      Quagga.onDetected(function(result) {
+        const code = result.codeResult.code;
+        console.log('تم التعرف على الباركود للمنتج:', code);
+        
+        // إيقاف المسح بعد التعرف على الباركود
+        Quagga.stop();
+        
+        scannedBarcodeValue = code;
+        document.getElementById('scannedBarcode').value = code;
+        document.getElementById('applyBarcode').disabled = false;
+        
+        showProductBarcodeResult(`تم مسح الباركود: ${code}`, true);
+      });
+      
+    } catch (error) {
+      console.error('خطأ في تشغيل الكاميرا:', error);
+      overlay.innerHTML = 'خطأ في تشغيل الكاميرا. تأكد من السماح باستخدام الكاميرا.';
+      overlay.style.display = 'flex';
+    }
+  };
+
+  window.stopProductBarcodeScanner = function() {
+    const video = document.getElementById('product-barcode-scanner');
+    const overlay = document.getElementById('productBarcodeOverlay');
+    const startBtn = document.getElementById('startProductScanner');
+    const stopBtn = document.getElementById('stopProductScanner');
+    const applyBtn = document.getElementById('applyBarcode');
+    
+    if (productStream) {
+      productStream.getTracks().forEach(track => track.stop());
+      productStream = null;
+    }
+    
+    if (video.srcObject) {
+      video.srcObject = null;
+    }
+    
+    Quagga.stop();
+    
+    overlay.innerHTML = 'اضغط على تشغيل الكاميرا لبدء مسح الباركود للمنتج';
+    overlay.style.display = 'flex';
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    applyBtn.disabled = true;
+  };
+
+  window.switchProductCamera = function() {
+    // إيقاف الكاميرا الحالية
+    window.stopProductBarcodeScanner();
+    
+    // تبديل نوع الكاميرا
+    productFacingMode = productFacingMode === 'environment' ? 'user' : 'environment';
+    
+    // إعادة تشغيل الكاميرا بالنوع الجديد
+    setTimeout(() => {
+      window.startProductBarcodeScanner();
+    }, 500);
+  };
+
+  window.applyScannedBarcode = function() {
+    if (scannedBarcodeValue) {
+      document.getElementById('pbarcode').value = scannedBarcodeValue;
+      showProductBarcodeResult('تم تطبيق الباركود على المنتج', true);
+      document.getElementById('applyBarcode').disabled = true;
+      
+      // إغلاق قسم الباركود بعد التطبيق
+      setTimeout(() => {
+        document.getElementById('productBarcodeContent').style.display = 'none';
+        document.getElementById('productBarcodeToggle').classList.remove('active');
+      }, 2000);
+    }
+  };
+
+  window.scanBarcodeForProduct = function() {
+    // فتح قسم الباركود
+    document.getElementById('productBarcodeContent').style.display = 'block';
+    document.getElementById('productBarcodeToggle').classList.add('active');
+    
+    // بدء المسح تلقائياً
+    setTimeout(() => {
+      window.startProductBarcodeScanner();
+    }, 500);
+  };
+
+  function showBarcodeResult(message, isSuccess) {
+    const resultDiv = document.getElementById('barcodeResult');
+    resultDiv.textContent = message;
+    resultDiv.className = `barcode-result ${isSuccess ? 'success' : 'error'}`;
+    resultDiv.style.display = 'block';
+    
+    // إخفاء الرسالة بعد 5 ثواني
+    setTimeout(() => {
+      resultDiv.style.display = 'none';
+    }, 5000);
+  }
+
+  function showProductBarcodeResult(message, isSuccess) {
+    const resultDiv = document.getElementById('productBarcodeResult');
+    resultDiv.textContent = message;
+    resultDiv.className = `barcode-result ${isSuccess ? 'success' : 'error'}`;
+    resultDiv.style.display = 'block';
+    
+    // إخفاء الرسالة بعد 5 ثواني
+    setTimeout(() => {
+      resultDiv.style.display = 'none';
+    }, 5000);
+  }
+
+  function addProductToCartByBarcode(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    
+    // التحقق إذا كان المنتج موجود بالفعل في السلة
+    const existingItemIndex = cart.findIndex(item => item.id === productId);
+    if (existingItemIndex > -1) {
+      // إذا كان موجود، نزيد الكمية فقط
+      cart[existingItemIndex].qty += 1;
+    } else {
+      // إذا لم يكن موجود، نضيفه جديد
+      cart.push({
+        id: product.id, 
+        name: product.name, 
+        qty: 1, 
+        imageUrl: product.imageUrl || '',
+        originalPrice: product.sellPrice
+      });
+    }
+    
+    renderCart();
+    
+    // إظهار رسالة نجاح
+    showBarcodeResult(`تم إضافة ${product.name} إلى السلة`, true);
+  }
+
   window.showPage = function(s) {
     document.querySelectorAll('.card:not(#login), #invoice').forEach(el => el.style.display = 'none');
     document.getElementById(s).style.display = 'block';
     document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
     document.querySelector(`[onclick="window.showPage('${s}')"]`)?.classList.add('active');
+    
+    // إيقاف الماسح الضوئي عند تغيير الصفحة
+    if (s !== 'add-order') {
+      window.stopBarcodeScanner();
+    }
+    if (s !== 'products') {
+      window.stopProductBarcodeScanner();
+    }
+    
     if(s==='orders') loadOrders();
     if(s==='products') { loadProducts(); document.getElementById('searchProducts').value = ''; }
-    if(s==='add-order') { cart = []; renderCart(); document.getElementById('applyDiscount').checked = false; loadProductsForCart(); }
+    if(s==='add-order') { 
+      cart = []; 
+      renderCart(); 
+      document.getElementById('applyDiscount').checked = false; 
+      loadProductsForCart(); 
+    }
     if(s==='dashboard') updateDashboard();
   };
 
   window.logout = () => {
-    if(confirm("تسجيل الخروج؟")) signOut(auth);
+    if(confirm("تسجيل الخروج؟")) {
+      window.stopBarcodeScanner();
+      window.stopProductBarcodeScanner();
+      signOut(auth);
+    }
   };
 
   function hideEverythingExceptLogin() {
@@ -463,7 +917,7 @@
 
   async function loadProducts() {
     const snap = await getDocs(collection(db, "products"));
-    products = snap.docs.map(d => ({id: d.id, ...d.data(), discount: d.data().discount || 0, imageUrl: d.data().imageUrl || ''}));
+    products = snap.docs.map(d => ({id: d.id, ...d.data(), discount: d.data().discount || 0, imageUrl: d.data().imageUrl || '', barcode: d.data().barcode || ''}));
     renderProducts();
     loadProductsForCart();
     loadProductsForEditCart();
@@ -471,7 +925,7 @@
 
   function renderProducts() {
     const term = (document.getElementById('searchProducts')?.value || '').toLowerCase();
-    const filtered = products.filter(p => p.name.toLowerCase().includes(term));
+    const filtered = products.filter(p => p.name.toLowerCase().includes(term) || (p.barcode && p.barcode.toLowerCase().includes(term)));
     document.getElementById('productsList').innerHTML = filtered.map(p => {
       const priceAfter = p.sellPrice * (1 - (p.discount || 0)/100);
       return `<tr>
@@ -481,12 +935,13 @@
         <td>${p.sellPrice} ج</td>
         <td><strong style="color:var(--o)">${p.discount}%</strong></td>
         <td style="background:#fff8e1">${priceAfter.toFixed(0)} ج</td>
+        <td>${p.barcode || 'لا يوجد'}</td>
         <td class="action-btns">
           <button class="orange small" onclick="window.editProduct('${p.id}')">تعديل</button>
           <button class="danger small" onclick="window.delP('${p.id}')">حذف</button>
         </td>
       </tr>`;
-    }).join('') || '<tr><td colspan="7" style="text-align:center;padding:50px;color:#999">لا توجد منتجات</td></tr>';
+    }).join('') || '<tr><td colspan="8" style="text-align:center;padding:50px;color:#999">لا توجد منتجات</td></tr>';
   }
 
   function loadProductsForCart() {
@@ -495,8 +950,9 @@
     input.oninput = () => {
       const term = input.value.toLowerCase();
       select.innerHTML = '';
-      products.filter(p => p.stock > 0 && p.name.toLowerCase().includes(term)).forEach(p => {
-        const opt = new Option(`${p.name} - ${p.sellPrice} ج (متوفر: ${p.stock})`, p.id);
+      products.filter(p => p.stock > 0 && (p.name.toLowerCase().includes(term) || (p.barcode && p.barcode.includes(term)))).forEach(p => {
+        const barcodeText = p.barcode ? ` - الباركود: ${p.barcode}` : '';
+        const opt = new Option(`${p.name} - ${p.sellPrice} ج (متوفر: ${p.stock})${barcodeText}`, p.id);
         select.add(opt);
       });
       select.style.display = select.options.length ? 'block' : 'none';
@@ -528,13 +984,10 @@
     const p = products.find(x => x.id === select.value);
     if(p.stock < qty) return alert("الكمية غير متوفرة");
     
-    // التحقق إذا كان المنتج موجود بالفعل في السلة
     const existingItemIndex = cart.findIndex(item => item.id === p.id);
     if (existingItemIndex > -1) {
-      // إذا كان موجود، نزيد الكمية فقط
       cart[existingItemIndex].qty += qty;
     } else {
-      // إذا لم يكن موجود، نضيفه جديد
       cart.push({
         id: p.id, 
         name: p.name, 
@@ -556,19 +1009,16 @@
     const qty = +document.getElementById('editQtyInput').value || 1;
     const p = products.find(x => x.id === select.value);
     
-    // التحقق إذا كان المنتج موجود بالفعل في السلة
     const existingItemIndex = editCart.findIndex(item => item.id === p.id);
     if (existingItemIndex > -1) {
-      // إذا كان موجود، نزيد الكمية فقط
       editCart[existingItemIndex].qty += qty;
     } else {
-      // إذا لم يكن موجود، نضيفه جديد
       editCart.push({
         id: p.id, 
         name: p.name, 
         qty: qty, 
         imageUrl: p.imageUrl || '',
-        originalPrice: p.sellPrice // حفظ السعر الأصلي
+        originalPrice: p.sellPrice
       });
     }
     
@@ -605,7 +1055,6 @@
     const itemsWithPrice = cart.map(i => {
       const p = products.find(x => x.id === i.id);
       
-      // التصحيح: حساب السعر بعد الخصم بشكل صحيح
       let price;
       if (useDiscount) {
         price = p.sellPrice * (1 - (p.discount || 0)/100);
@@ -636,7 +1085,7 @@
         totalPrice: totalAfter,
         orderStatus: document.getElementById('status').value,
         timestamp: serverTimestamp(),
-        appliedDiscount: useDiscount // حفظ حالة تفعيل الخصم
+        appliedDiscount: useDiscount
       });
       for (const i of cart) {
         await updateDoc(doc(db, "products", i.id), { stock: increment(-i.qty) });
@@ -679,12 +1128,19 @@ ${itemsText.replace(/%0A/g, '\n')}
   async function loadOrders() {
     const snap = await getDocs(query(collection(db,"orders"), orderBy("timestamp","desc")));
     orders = snap.docs.map(d => ({id: d.id, ...d.data()}));
-    renderOrders(); updateDashboard();
+    renderOrders(); 
+    updateDashboard();
   }
 
+  // إضافة الدالة المفقودة renderOrders
   function renderOrders() {
     const term = (document.getElementById('searchOrders')?.value || '').toLowerCase();
-    const filtered = orders.filter(o => o.customerName.toLowerCase().includes(term) || o.customerPhone.includes(term) || o.items.some(i => i.name.toLowerCase().includes(term)));
+    const filtered = orders.filter(o => 
+      o.customerName.toLowerCase().includes(term) || 
+      o.customerPhone.includes(term) || 
+      o.items.some(i => i.name.toLowerCase().includes(term))
+    );
+    
     document.getElementById('ordersList').innerHTML = filtered.map(o => {
       const items = o.items.map(i => `${i.name}×${i.qty}`).join('، ');
       const date = o.timestamp?.toDate?.()?.toLocaleString('ar-EG') || '';
@@ -710,14 +1166,12 @@ ${itemsText.replace(/%0A/g, '\n')}
     const order = orders.find(o => o.id === id);
     if (!order) return alert("الطلب غير موجود");
     
-    // تعبئة البيانات في نموذج التعديل
     document.getElementById('editOrderId').value = order.id;
     document.getElementById('editCname').value = order.customerName;
     document.getElementById('editCphone').value = order.customerPhone.replace('+2', '');
     document.getElementById('editCaddr').value = order.customerAddress || '';
     document.getElementById('editStatus').value = order.orderStatus;
     
-    // تعبئة السلة - هذا هو التصحيح المهم
     editCart = order.items.map(item => ({
       id: item.id,
       name: item.name,
@@ -726,12 +1180,10 @@ ${itemsText.replace(/%0A/g, '\n')}
       originalPrice: item.price || products.find(p => p.id === item.id)?.sellPrice || 0
     }));
     
-    // تعيين حالة تفعيل الخصم بناءً على البيانات المحفوظة
     document.getElementById('editApplyDiscount').checked = order.appliedDiscount || false;
     
     renderEditCart();
     
-    // إظهار صفحة التعديل
     document.querySelectorAll('.card').forEach(el => el.style.display = 'none');
     document.getElementById('edit-order').style.display = 'block';
   };
@@ -754,10 +1206,8 @@ ${itemsText.replace(/%0A/g, '\n')}
       let price;
       
       if (useDiscount) {
-        // استخدام السعر بعد الخصم
         price = p.sellPrice * (1 - (p.discount || 0)/100);
       } else {
-        // استخدام السعر الأصلي المحفوظ أو سعر البيع الحالي
         price = i.originalPrice || p.sellPrice;
       }
       
@@ -782,7 +1232,6 @@ ${itemsText.replace(/%0A/g, '\n')}
     try {
       console.log("جاري تحديث الطلب:", orderId);
       
-      // تحديث الطلب في قاعدة البيانات
       await updateDoc(doc(db, "orders", orderId), {
         customerName: customerName,
         customerPhone: '+2' + phone,
@@ -790,18 +1239,16 @@ ${itemsText.replace(/%0A/g, '\n')}
         items: itemsWithPrice,
         totalPrice: totalAfter,
         orderStatus: orderStatus,
-        appliedDiscount: useDiscount, // حفظ حالة تفعيل الخصم
+        appliedDiscount: useDiscount,
         updatedAt: serverTimestamp()
       });
       
       console.log("تم تحديث الطلب بنجاح");
       
-      // إعادة تحميل الطلبات لعرض التحديثات
       await loadOrders();
       
       alert("✅ تم تحديث الطلب بنجاح!");
       
-      // العودة إلى صفحة الطلبات
       window.showPage('orders');
       
     } catch (err) {
@@ -838,8 +1285,26 @@ ${itemsText.replace(/%0A/g, '\n')}
   };
 
   window.delOrder = id => confirm("حذف نهائي؟") && deleteDoc(doc(db,'orders',id)).then(loadOrders);
-  window.deleteAllOrders = () => confirm("حذف الكل؟") && getDocs(collection(db,"orders")).then(s => { const b = writeBatch(db); s.docs.forEach(d => b.delete(d.ref)); return b.commit(); }).then(loadOrders);
-  window.deleteAllProducts = () => confirm("حذف الكل؟") && getDocs(collection(db,"products")).then(s => { const b = writeBatch(db); s.docs.forEach(d => b.delete(d.ref)); return b.commit(); }).then(loadProducts);
+  
+  window.deleteAllOrders = () => {
+    if(confirm("هل أنت متأكد من حذف كل الطلبات؟ هذا الإجراء لا يمكن التراجع عنه!")) {
+      getDocs(collection(db,"orders")).then(s => { 
+        const b = writeBatch(db); 
+        s.docs.forEach(d => b.delete(d.ref)); 
+        return b.commit(); 
+      }).then(loadOrders);
+    }
+  };
+  
+  window.deleteAllProducts = () => {
+    if(confirm("هل أنت متأكد من حذف كل المنتجات؟ هذا الإجراء لا يمكن التراجع عنه!")) {
+      getDocs(collection(db,"products")).then(s => { 
+        const b = writeBatch(db); 
+        s.docs.forEach(d => b.delete(d.ref)); 
+        return b.commit(); 
+      }).then(loadProducts);
+    }
+  };
 
   function updateDashboard() {
     const today = new Date().toDateString();
@@ -856,10 +1321,10 @@ ${itemsText.replace(/%0A/g, '\n')}
     const data = products.map(p => ({
       "اسم المنتج": p.name, "الكمية": p.stock, "سعر البيع": p.sellPrice,
       "الخصم %": p.discount || 0, "السعر بعد الخصم": (p.sellPrice * (1 - (p.discount || 0)/100)).toFixed(0),
-      "رابط الصورة": p.imageUrl || ""
+      "الباركود": p.barcode || "", "رابط الصورة": p.imageUrl || ""
     }));
     const ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = [{wch:25},{wch:10},{wch:12},{wch:10},{wch:15},{wch:50}];
+    ws['!cols'] = [{wch:25},{wch:10},{wch:12},{wch:10},{wch:15},{wch:20},{wch:50}];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "المنتجات");
     XLSX.writeFile(wb, "AshryNatural_المنتجات_" + new Date().toISOString().slice(0,10) + ".xlsx");
@@ -892,9 +1357,10 @@ ${itemsText.replace(/%0A/g, '\n')}
           const stock = Number(r["الكمية"] || 0) || 0;
           const sellPrice = Number(r["سعر البيع"] || r["السعر"] || 0) || 0;
           const discount = Number(r["الخصم %"] || 0) || 0;
+          const barcode = String(r["الباركود"] || "").trim();
           const imageUrl = String(r["رابط الصورة"] || "").trim();
           if (!name || sellPrice <= 0) { skipped++; continue; }
-          await addDoc(collection(db, "products"), { name, stock, sellPrice, discount, imageUrl: imageUrl || "" });
+          await addDoc(collection(db, "products"), { name, stock, sellPrice, discount, barcode, imageUrl: imageUrl || "" });
           added++;
         }
         alert(`تم الاستيراد!\nأُضيف: ${added}\nتم تجاهل: ${skipped}`);
@@ -912,6 +1378,7 @@ ${itemsText.replace(/%0A/g, '\n')}
     document.getElementById('pstock').value = p.stock;
     document.getElementById('psell').value = p.sellPrice;
     document.getElementById('pdiscount').value = p.discount;
+    document.getElementById('pbarcode').value = p.barcode || '';
     if(p.imageUrl) document.getElementById('imagePreview').innerHTML = `<img src="${p.imageUrl}" class="product-img-preview">`;
     document.getElementById('productSubmitBtn').innerText = "حفظ التعديل";
     window.showPage('products');
@@ -949,6 +1416,7 @@ ${itemsText.replace(/%0A/g, '\n')}
       stock: +document.getElementById('pstock').value,
       sellPrice: +document.getElementById('psell').value,
       discount: +document.getElementById('pdiscount').value || 0,
+      barcode: document.getElementById('pbarcode').value.trim(),
       imageUrl
     };
     try {
@@ -998,6 +1466,33 @@ ${itemsText.replace(/%0A/g, '\n')}
     // مستمعي أحداث البحث
     document.getElementById('searchOrders').addEventListener('input', renderOrders);
     document.getElementById('searchProducts').addEventListener('input', renderProducts);
+    
+    // مستمعي أحداث الباركود للطلبات
+    document.getElementById('startScanner').addEventListener('click', window.startBarcodeScanner);
+    document.getElementById('stopScanner').addEventListener('click', window.stopBarcodeScanner);
+    document.getElementById('switchCamera').addEventListener('click', window.switchCamera);
+    
+    // مستمعي أحداث الباركود للمنتجات
+    document.getElementById('startProductScanner').addEventListener('click', window.startProductBarcodeScanner);
+    document.getElementById('stopProductScanner').addEventListener('click', window.stopProductBarcodeScanner);
+    document.getElementById('switchProductCamera').addEventListener('click', window.switchProductCamera);
+    document.getElementById('applyBarcode').addEventListener('click', window.applyScannedBarcode);
+    document.getElementById('scanBarcodeForProduct').addEventListener('click', window.scanBarcodeForProduct);
+    
+    // تبديل عرض قسم الباركود
+    document.getElementById('barcodeToggle').addEventListener('click', function() {
+      const content = document.getElementById('barcodeContent');
+      const isVisible = content.style.display === 'block';
+      content.style.display = isVisible ? 'none' : 'block';
+      this.classList.toggle('active', !isVisible);
+    });
+    
+    document.getElementById('productBarcodeToggle').addEventListener('click', function() {
+      const content = document.getElementById('productBarcodeContent');
+      const isVisible = content.style.display === 'block';
+      content.style.display = isVisible ? 'none' : 'block';
+      this.classList.toggle('active', !isVisible);
+    });
   });
 </script>
 
