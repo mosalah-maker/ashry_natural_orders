@@ -61,7 +61,7 @@
     /* أنماط جديدة للباركود - محسنة */
     .barcode-section{margin:20px 0;padding:20px;background:#f8f9fa;border-radius:12px;border:2px dashed #ddd}
     .barcode-container{position:relative;width:100%;max-width:500px;margin:0 auto}
-    .barcode-scanner{width:100%;height:300px;background:#000;border-radius:12px;object-fit:cover}
+    .barcode-scanner{width:100%;height:400px;background:#000;border-radius:12px;object-fit:cover}
     .barcode-overlay{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);color:white;font-size:18px;border-radius:12px;z-index:10}
     .barcode-controls{display:flex;gap:10px;margin-top:15px;justify-content:center}
     .barcode-controls button{width:auto;padding:10px 20px}
@@ -76,12 +76,18 @@
     .barcode-input-group button{width:auto;padding:10px 15px}
     
     /* مستطيل المسح الجديد */
-    .scan-area{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:70%;height:200px;border:3px solid #fff;border-radius:12px;box-shadow:0 0 0 4000px rgba(0,0,0,0.5);z-index:5;transition:all 0.3s ease}
+    .scan-area{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80%;height:250px;border:3px solid #fff;border-radius:12px;box-shadow:0 0 0 4000px rgba(0,0,0,0.5);z-index:5;transition:all 0.3s ease}
     .scan-area.scanning{border-color:#ffeb3b;animation:pulse 1.5s infinite}
     .scan-area.success{border-color:#27ae60;background:rgba(39,174,96,0.1)}
     .scan-area.error{border-color:#e74c3c;background:rgba(231,76,60,0.1)}
     .scan-area-line{position:absolute;top:0;left:0;width:100%;height:3px;background:#27ae60;animation:scanLine 2s linear infinite;display:none}
     .scan-area.scanning .scan-area-line{display:block}
+    
+    /* مؤشر التكبير */
+    .zoom-indicator{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:white;padding:5px 10px;border-radius:20px;font-size:12px;z-index:10}
+    
+    /* إرشادات المسح */
+    .scan-instructions{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:white;padding:8px 15px;border-radius:20px;font-size:12px;z-index:10;text-align:center}
     
     @keyframes pulse {
       0% { box-shadow: 0 0 0 4000px rgba(0,0,0,0.5), 0 0 0 0 rgba(255,235,59,0.7); }
@@ -114,7 +120,8 @@
       .barcode-controls button{width:100%}
       .barcode-input-group{flex-direction:column}
       .barcode-input-group button{width:100%}
-      .scan-area{width:85%;height:150px}
+      .scan-area{width:90%;height:200px}
+      .barcode-scanner{height:350px}
     }
     #invoice{display:none;background:white;padding:30px;border:2px solid #333;border-radius:12px;max-width:800px;margin:20px auto;box-shadow:0 0 30px rgba(0,0,0,.3);font-size:18px}
     .invoice-header{text-align:center;margin-bottom:30px}
@@ -215,7 +222,7 @@
     </div>
     <hr style="margin:30px 0">
     
-    <!-- قسم الباركود - محسن -->
+    <!-- قسم الباركود - محسن للدقة -->
     <div class="barcode-section">
       <div class="barcode-toggle" id="barcodeToggle">
         <i class="fas fa-barcode"></i>
@@ -228,6 +235,12 @@
           <video id="barcode-scanner" class="barcode-scanner"></video>
           <div class="scan-area" id="scanArea">
             <div class="scan-area-line"></div>
+          </div>
+          <div class="scan-instructions" id="scanInstructions">
+            <i class="fas fa-info-circle"></i> قرب الباركود من الكاميرا
+          </div>
+          <div class="zoom-indicator" id="zoomIndicator">
+            <i class="fas fa-search"></i> المسافة المثالية: 15-20 سم
           </div>
           <div class="barcode-overlay" id="barcodeOverlay">
             <div style="text-align:center">
@@ -250,6 +263,20 @@
           <button id="switchCamera" class="orange">
             <i class="fas fa-sync-alt"></i> تبديل الكاميرا
           </button>
+          <button id="focusCamera" class="orange">
+            <i class="fas fa-crosshairs"></i> ضبط التركيز
+          </button>
+        </div>
+        
+        <div style="background:#f0f8ff;padding:15px;border-radius:12px;margin:15px 0;border-right:4px solid #1e3c72">
+          <h4 style="color:#1e3c72;margin-bottom:10px"><i class="fas fa-lightbulb"></i> نصائح للمسح الدقيق:</h4>
+          <ul style="color:#555;margin:0;padding-right:20px">
+            <li>تأكد من إضاءة جيدة على الباركود</li>
+            <li>حافظ على مسافة 15-20 سم بين الكاميرا والباركود</li>
+            <li>اجعل الباركود موازياً للكاميرا</li>
+            <li>تجنب الظلال على الباركود</li>
+            <li>استخدم زر "ضبط التركيز" إذا كانت الصورة غير واضحة</li>
+          </ul>
         </div>
         
         <div id="barcodeResult" class="barcode-result"></div>
@@ -356,6 +383,12 @@
           <div class="scan-area" id="productScanArea">
             <div class="scan-area-line"></div>
           </div>
+          <div class="scan-instructions" id="productScanInstructions">
+            <i class="fas fa-info-circle"></i> قرب الباركود من الكاميرا
+          </div>
+          <div class="zoom-indicator" id="productZoomIndicator">
+            <i class="fas fa-search"></i> المسافة المثالية: 15-20 سم
+          </div>
           <div class="barcode-overlay" id="productBarcodeOverlay">
             <div style="text-align:center">
               <i class="fas fa-camera" style="font-size:48px;margin-bottom:15px;display:block"></i>
@@ -376,6 +409,9 @@
           </button>
           <button id="switchProductCamera" class="orange">
             <i class="fas fa-sync-alt"></i> تبديل الكاميرا
+          </button>
+          <button id="focusProductCamera" class="orange">
+            <i class="fas fa-crosshairs"></i> ضبط التركيز
           </button>
         </div>
         
@@ -449,6 +485,7 @@
   let productFacingMode = 'environment';
   let scannedBarcodeValue = '';
   let isScanning = false;
+  let quaggaInitialized = false;
 
   // تعريف الدوال في النطاق العالمي
   window.renderCart = function() {
@@ -559,22 +596,26 @@
       </div>`;
   };
 
-  // دوال الباركود للطلبات - محسنة
+  // دوال الباركود للطلبات - محسنة للدقة
   window.startBarcodeScanner = async function() {
     const video = document.getElementById('barcode-scanner');
     const overlay = document.getElementById('barcodeOverlay');
     const scanArea = document.getElementById('scanArea');
     const startBtn = document.getElementById('startScanner');
     const stopBtn = document.getElementById('stopScanner');
+    const focusBtn = document.getElementById('focusCamera');
     
     try {
       overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-spinner fa-spin" style="font-size:48px;margin-bottom:15px;display:block"></i> جاري تشغيل الكاميرا...</div>';
       
+      // إعدادات كاميرا عالية الدقة
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: currentFacingMode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { ideal: 1920, min: 1280 },
+          height: { ideal: 1080, min: 720 },
+          frameRate: { ideal: 30, min: 24 },
+          focusMode: 'continuous'
         },
         audio: false
       });
@@ -582,44 +623,73 @@
       currentStream = stream;
       video.srcObject = stream;
       
+      // محاولة تفعيل التركيز التلقائي
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack && videoTrack.getCapabilities && videoTrack.getCapabilities().focusDistance) {
+        try {
+          await videoTrack.applyConstraints({
+            advanced: [{ focusMode: 'continuous' }]
+          });
+        } catch (e) {
+          console.log('التركيز التلقائي غير مدعوم:', e);
+        }
+      }
+      
       await video.play();
       
       overlay.style.display = 'none';
       startBtn.disabled = true;
       stopBtn.disabled = false;
+      focusBtn.disabled = false;
       isScanning = true;
       
       // بدء وضع المسح
       scanArea.classList.add('scanning');
       
-      // تهيئة Quagga للتعرف على الباركود
+      // إعادة تهيئة Quagga إذا كان قد تم تهيئته من قبل
+      if (quaggaInitialized) {
+        Quagga.stop();
+      }
+      
+      // تهيئة Quagga للتعرف على الباركود مع إعدادات محسنة
       Quagga.init({
         inputStream: {
           name: "Live",
           type: "LiveStream",
           target: video,
           constraints: {
-            width: 1280,
-            height: 720,
+            width: 1920,
+            height: 1080,
             facingMode: currentFacingMode
+          },
+          area: {
+            top: "25%",
+            right: "10%",
+            left: "10%",
+            bottom: "25%"
           }
         },
         locator: {
-          patchSize: "medium",
-          halfSample: true
+          patchSize: "x-large",
+          halfSample: false
         },
-        numOfWorkers: 2,
+        numOfWorkers: navigator.hardwareConcurrency || 4,
         decoder: {
           readers: [
             "code_128_reader",
             "ean_reader",
             "ean_8_reader",
             "code_39_reader",
+            "code_39_vin_reader",
+            "codabar_reader",
             "upc_reader",
-            "upc_e_reader"
-          ]
+            "upc_e_reader",
+            "i2of5_reader"
+          ],
+          multiple: false
         },
-        locate: true
+        locate: true,
+        frequency: 10
       }, function(err) {
         if (err) {
           console.error('خطأ في تهيئة Quagga:', err);
@@ -630,14 +700,48 @@
         }
         
         Quagga.start();
-        console.log('Quagga started successfully');
+        quaggaInitialized = true;
+        console.log('Quagga started successfully with improved settings');
+      });
+      
+      Quagga.onProcessed(function(result) {
+        if (!result) return;
+        
+        // عرض معلومات التتبع للمساعدة في تصحيح الأخطاء
+        const drawingCtx = Quagga.canvas.ctx.overlay;
+        const drawingCanvas = Quagga.canvas.dom.overlay;
+        
+        drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.getAttribute("width")), parseInt(drawingCanvas.getAttribute("height")));
+        
+        if (result.boxes) {
+          drawingCtx.strokeStyle = "#00FF00";
+          result.boxes.filter(function(box) {
+            return box !== result.box;
+          }).forEach(function(box) {
+            Quagga.ImageDebug.drawPath(box, {x: 0, y: 1}, drawingCtx, {color: "green", lineWidth: 2});
+          });
+        }
+        
+        if (result.box) {
+          Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCtx, {color: "#00F", lineWidth: 2});
+        }
+        
+        if (result.codeResult && result.codeResult.code) {
+          Quagga.ImageDebug.drawPath(result.line, {x: 'x', y: 'y'}, drawingCtx, {color: 'red', lineWidth: 3});
+        }
       });
       
       Quagga.onDetected(function(result) {
         if (!isScanning) return;
         
         const code = result.codeResult.code;
-        console.log('تم التعرف على الباركود:', code);
+        console.log('تم التعرف على الباركود:', code, 'بدقة:', result.codeResult.format);
+        
+        // التحقق من جودة النتيجة
+        if (!isValidBarcode(code)) {
+          console.log('باركود غير صالح:', code);
+          return;
+        }
         
         // تغيير لون المستطيل إلى الأخضر للإشارة إلى النجاح
         const scanArea = document.getElementById('scanArea');
@@ -649,7 +753,7 @@
         Quagga.stop();
         
         // البحث عن المنتج باستخدام الباركود
-        const product = products.find(p => p.barcode === code);
+        const product = findProductByBarcode(code);
         
         if (product) {
           showBarcodeResult(`تم التعرف على المنتج: ${product.name}`, true);
@@ -689,12 +793,77 @@
     }
   };
 
+  // دالة للتحقق من صحة الباركود
+  function isValidBarcode(code) {
+    if (!code || code.length < 4) return false;
+    
+    // التحقق من الأحرف المسموح بها
+    const validChars = /^[0-9a-zA-Z\-\.\ \$\/\+\%]+$/;
+    if (!validChars.test(code)) return false;
+    
+    return true;
+  }
+
+  // دالة محسنة للبحث عن المنتج بالباركود
+  function findProductByBarcode(barcode) {
+    // البحث الدقيق أولاً
+    let product = products.find(p => p.barcode === barcode);
+    
+    if (!product) {
+      // إذا لم يتم العثور، حاول البحث مع إزالة المسافات والأحرف الخاصة
+      const cleanBarcode = barcode.replace(/[\s\-\.]/g, '');
+      product = products.find(p => {
+        const cleanProductBarcode = p.barcode ? p.barcode.replace(/[\s\-\.]/g, '') : '';
+        return cleanProductBarcode === cleanBarcode;
+      });
+    }
+    
+    if (!product) {
+      // البحث الجزئي كحل أخير
+      product = products.find(p => p.barcode && p.barcode.includes(barcode));
+    }
+    
+    return product;
+  }
+
+  // دالة ضبط التركيز
+  window.focusCamera = async function() {
+    if (!currentStream) return;
+    
+    const videoTrack = currentStream.getVideoTracks()[0];
+    if (videoTrack && videoTrack.getCapabilities && videoTrack.getCapabilities().focusDistance) {
+      try {
+        await videoTrack.applyConstraints({
+          advanced: [{ focusMode: 'manual', focusDistance: 0.1 }]
+        });
+        
+        // العودة للتركيز التلقائي بعد ثانية
+        setTimeout(async () => {
+          try {
+            await videoTrack.applyConstraints({
+              advanced: [{ focusMode: 'continuous' }]
+            });
+          } catch (e) {
+            console.log('لا يمكن العودة للتركيز التلقائي');
+          }
+        }, 1000);
+        
+        showBarcodeResult('تم ضبط التركيز', true);
+      } catch (e) {
+        showBarcodeResult('لا يمكن ضبط التركيز على هذا الجهاز', false);
+      }
+    } else {
+      showBarcodeResult('التركيز اليدوي غير مدعوم على هذا الجهاز', false);
+    }
+  };
+
   window.stopBarcodeScanner = function() {
     const video = document.getElementById('barcode-scanner');
     const overlay = document.getElementById('barcodeOverlay');
     const scanArea = document.getElementById('scanArea');
     const startBtn = document.getElementById('startScanner');
     const stopBtn = document.getElementById('stopScanner');
+    const focusBtn = document.getElementById('focusCamera');
     
     if (currentStream) {
       currentStream.getTracks().forEach(track => track.stop());
@@ -713,6 +882,7 @@
     overlay.style.display = 'flex';
     startBtn.disabled = false;
     stopBtn.disabled = true;
+    focusBtn.disabled = true;
   };
 
   window.switchCamera = function() {
@@ -725,10 +895,10 @@
     // إعادة تشغيل الكاميرا بالنوع الجديد
     setTimeout(() => {
       window.startBarcodeScanner();
-    }, 500);
+    }, 1000);
   };
 
-  // دوال الباركود للمنتجات - محسنة
+  // دوال الباركود للمنتجات - نفس التحسينات
   window.startProductBarcodeScanner = async function() {
     const video = document.getElementById('product-barcode-scanner');
     const overlay = document.getElementById('productBarcodeOverlay');
@@ -736,6 +906,7 @@
     const startBtn = document.getElementById('startProductScanner');
     const stopBtn = document.getElementById('stopProductScanner');
     const applyBtn = document.getElementById('applyBarcode');
+    const focusBtn = document.getElementById('focusProductCamera');
     
     try {
       overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-spinner fa-spin" style="font-size:48px;margin-bottom:15px;display:block"></i> جاري تشغيل الكاميرا...</div>';
@@ -743,8 +914,10 @@
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: productFacingMode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { ideal: 1920, min: 1280 },
+          height: { ideal: 1080, min: 720 },
+          frameRate: { ideal: 30, min: 24 },
+          focusMode: 'continuous'
         },
         audio: false
       });
@@ -758,38 +931,50 @@
       startBtn.disabled = true;
       stopBtn.disabled = false;
       applyBtn.disabled = true;
+      focusBtn.disabled = false;
       
       // بدء وضع المسح
       if (scanArea) scanArea.classList.add('scanning');
       
-      // تهيئة Quagga للتعرف على الباركود
+      // إعدادات Quagga محسنة للمنتجات
       Quagga.init({
         inputStream: {
           name: "Live",
           type: "LiveStream",
           target: video,
           constraints: {
-            width: 1280,
-            height: 720,
+            width: 1920,
+            height: 1080,
             facingMode: productFacingMode
+          },
+          area: {
+            top: "25%",
+            right: "10%",
+            left: "10%",
+            bottom: "25%"
           }
         },
         locator: {
-          patchSize: "medium",
-          halfSample: true
+          patchSize: "x-large",
+          halfSample: false
         },
-        numOfWorkers: 2,
+        numOfWorkers: navigator.hardwareConcurrency || 4,
         decoder: {
           readers: [
             "code_128_reader",
             "ean_reader",
             "ean_8_reader",
             "code_39_reader",
+            "code_39_vin_reader",
+            "codabar_reader",
             "upc_reader",
-            "upc_e_reader"
-          ]
+            "upc_e_reader",
+            "i2of5_reader"
+          ],
+          multiple: false
         },
-        locate: true
+        locate: true,
+        frequency: 10
       }, function(err) {
         if (err) {
           console.error('خطأ في تهيئة Quagga:', err);
@@ -800,12 +985,17 @@
         }
         
         Quagga.start();
-        console.log('Quagga for products started successfully');
+        console.log('Quagga for products started successfully with improved settings');
       });
       
       Quagga.onDetected(function(result) {
         const code = result.codeResult.code;
-        console.log('تم التعرف على الباركود للمنتج:', code);
+        console.log('تم التعرف على الباركود للمنتج:', code, 'بدقة:', result.codeResult.format);
+        
+        if (!isValidBarcode(code)) {
+          console.log('باركود غير صالح:', code);
+          return;
+        }
         
         // تغيير لون المستطيل إلى الأخضر للإشارة إلى النجاح
         if (scanArea) {
@@ -847,6 +1037,7 @@
     const startBtn = document.getElementById('startProductScanner');
     const stopBtn = document.getElementById('stopProductScanner');
     const applyBtn = document.getElementById('applyBarcode');
+    const focusBtn = document.getElementById('focusProductCamera');
     
     if (productStream) {
       productStream.getTracks().forEach(track => track.stop());
@@ -865,6 +1056,7 @@
     startBtn.disabled = false;
     stopBtn.disabled = true;
     applyBtn.disabled = true;
+    focusBtn.disabled = true;
   };
 
   window.switchProductCamera = function() {
@@ -877,7 +1069,37 @@
     // إعادة تشغيل الكاميرا بالنوع الجديد
     setTimeout(() => {
       window.startProductBarcodeScanner();
-    }, 500);
+    }, 1000);
+  };
+
+  window.focusProductCamera = async function() {
+    if (!productStream) return;
+    
+    const videoTrack = productStream.getVideoTracks()[0];
+    if (videoTrack && videoTrack.getCapabilities && videoTrack.getCapabilities().focusDistance) {
+      try {
+        await videoTrack.applyConstraints({
+          advanced: [{ focusMode: 'manual', focusDistance: 0.1 }]
+        });
+        
+        // العودة للتركيز التلقائي بعد ثانية
+        setTimeout(async () => {
+          try {
+            await videoTrack.applyConstraints({
+              advanced: [{ focusMode: 'continuous' }]
+            });
+          } catch (e) {
+            console.log('لا يمكن العودة للتركيز التلقائي');
+          }
+        }, 1000);
+        
+        showProductBarcodeResult('تم ضبط التركيز', true);
+      } catch (e) {
+        showProductBarcodeResult('لا يمكن ضبط التركيز على هذا الجهاز', false);
+      }
+    } else {
+      showProductBarcodeResult('التركيز اليدوي غير مدعوم على هذا الجهاز', false);
+    }
   };
 
   window.applyScannedBarcode = function() {
@@ -1581,11 +1803,13 @@ ${itemsText.replace(/%0A/g, '\n')}
     document.getElementById('startScanner').addEventListener('click', window.startBarcodeScanner);
     document.getElementById('stopScanner').addEventListener('click', window.stopBarcodeScanner);
     document.getElementById('switchCamera').addEventListener('click', window.switchCamera);
+    document.getElementById('focusCamera').addEventListener('click', window.focusCamera);
     
     // مستمعي أحداث الباركود للمنتجات
     document.getElementById('startProductScanner').addEventListener('click', window.startProductBarcodeScanner);
     document.getElementById('stopProductScanner').addEventListener('click', window.stopProductBarcodeScanner);
     document.getElementById('switchProductCamera').addEventListener('click', window.switchProductCamera);
+    document.getElementById('focusProductCamera').addEventListener('click', window.focusProductCamera);
     document.getElementById('applyBarcode').addEventListener('click', window.applyScannedBarcode);
     document.getElementById('scanBarcodeForProduct').addEventListener('click', window.scanBarcodeForProduct);
     
