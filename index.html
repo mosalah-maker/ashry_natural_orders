@@ -865,7 +865,7 @@
           <div class="barcode-overlay" id="barcodeOverlay">
             <div style="text-align:center">
               <i class="fas fa-camera" style="font-size:48px;margin-bottom:15px;display:block"></i>
-              اضغط على تشغيل الكاميرا لبدء المسح
+              جاري تشغيل الكاميرا...
               <div style="margin-top:15px;font-size:14px;color:#ddd">
                 ضع الباركود داخل المستطيل ليتم التعرف عليه تلقائياً
               </div>
@@ -874,14 +874,8 @@
         </div>
         
         <div class="barcode-controls">
-          <button id="startScanner" class="success">
-            <i class="fas fa-camera"></i> تشغيل الكاميرا
-          </button>
-          <button id="stopScanner" class="danger" disabled>
-            <i class="fas fa-stop"></i> إيقاف الكاميرا
-          </button>
-          <button id="switchCamera" class="orange">
-            <i class="fas fa-sync-alt"></i> تبديل الكاميرا
+          <button id="flashToggle" class="orange">
+            <i class="fas fa-lightbulb"></i> تشغيل الفلاش
           </button>
           <button id="focusCamera" class="orange">
             <i class="fas fa-crosshairs"></i> ضبط التركيز
@@ -896,6 +890,7 @@
             <li>اجعل الباركود موازياً للكاميرا</li>
             <li>تجنب الظلال على الباركود</li>
             <li>استخدم زر "ضبط التركيز" إذا كانت الصورة غير واضحة</li>
+            <li>استخدم زر "تشغيل الفلاش" في الأماكن المظلمة</li>
           </ul>
         </div>
         
@@ -1020,7 +1015,7 @@
           <div class="barcode-overlay" id="productBarcodeOverlay">
             <div style="text-align:center">
               <i class="fas fa-camera" style="font-size:48px;margin-bottom:15px;display:block"></i>
-              اضغط على تشغيل الكاميرا لبدء مسح الباركود للمنتج
+              جاري تشغيل الكاميرا...
               <div style="margin-top:15px;font-size:14px;color:#ddd">
                 ضع الباركود داخل المستطيل ليتم التعرف عليه تلقائياً
               </div>
@@ -1029,14 +1024,8 @@
         </div>
         
         <div class="barcode-controls">
-          <button id="startProductScanner" class="success">
-            <i class="fas fa-camera"></i> تشغيل الكاميرا
-          </button>
-          <button id="stopProductScanner" class="danger" disabled>
-            <i class="fas fa-stop"></i> إيقاف الكاميرا
-          </button>
-          <button id="switchProductCamera" class="orange">
-            <i class="fas fa-sync-alt"></i> تبديل الكاميرا
+          <button id="productFlashToggle" class="orange">
+            <i class="fas fa-lightbulb"></i> تشغيل الفلاش
           </button>
           <button id="focusProductCamera" class="orange">
             <i class="fas fa-crosshairs"></i> ضبط التركيز
@@ -1118,6 +1107,8 @@
   let quaggaInitialized = false;
   let quaggaProductInitialized = false;
   let connectionTestInterval = null;
+  let flashEnabled = false;
+  let productFlashEnabled = false;
 
   // تعريف الدوال في النطاق العالمي
   window.renderCart = function() {
@@ -1228,20 +1219,17 @@
       </div>`;
   };
 
-  // دوال الباركود للطلبات - محسنة للقراءة المستمرة
+  // دوال الباركود للطلبات - محسنة للقراءة المستمرة والتشغيل التلقائي
   window.startBarcodeScanner = async function() {
     const video = document.getElementById('barcode-scanner');
     const overlay = document.getElementById('barcodeOverlay');
     const scanArea = document.getElementById('scanArea');
-    const startBtn = document.getElementById('startScanner');
-    const stopBtn = document.getElementById('stopScanner');
-    const focusBtn = document.getElementById('focusCamera');
     
     try {
       overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-spinner fa-spin" style="font-size:48px;margin-bottom:15px;display:block"></i> جاري تشغيل الكاميرا...</div>';
       
       // إعدادات كاميرا عالية الدقة
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const constraints = {
         video: { 
           facingMode: currentFacingMode,
           width: { ideal: 1920, min: 1280 },
@@ -1250,7 +1238,14 @@
           focusMode: 'continuous'
         },
         audio: false
-      });
+      };
+      
+      // إضافة الفلاش إذا كان مفعل
+      if (flashEnabled) {
+        constraints.video.torch = true;
+      }
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       
       currentStream = stream;
       video.srcObject = stream;
@@ -1270,9 +1265,6 @@
       await video.play();
       
       overlay.style.display = 'none';
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
-      focusBtn.disabled = false;
       isScanning = true;
       
       // بدء وضع المسح
@@ -1506,13 +1498,40 @@
     }
   };
 
+  // دالة تشغيل/إيقاف الفلاش
+  window.toggleFlash = async function() {
+    if (!currentStream) return;
+    
+    const videoTrack = currentStream.getVideoTracks()[0];
+    if (videoTrack && videoTrack.getCapabilities && videoTrack.getCapabilities().torch) {
+      try {
+        flashEnabled = !flashEnabled;
+        await videoTrack.applyConstraints({
+          advanced: [{ torch: flashEnabled }]
+        });
+        
+        const flashBtn = document.getElementById('flashToggle');
+        if (flashEnabled) {
+          flashBtn.innerHTML = '<i class="fas fa-lightbulb"></i> إيقاف الفلاش';
+          flashBtn.style.background = '#f39c12';
+          showBarcodeResult('تم تشغيل الفلاش', true);
+        } else {
+          flashBtn.innerHTML = '<i class="fas fa-lightbulb"></i> تشغيل الفلاش';
+          flashBtn.style.background = '';
+          showBarcodeResult('تم إيقاف الفلاش', true);
+        }
+      } catch (e) {
+        showBarcodeResult('الفلاش غير مدعوم على هذا الجهاز', false);
+      }
+    } else {
+      showBarcodeResult('الفلاش غير مدعوم على هذا الجهاز', false);
+    }
+  };
+
   window.stopBarcodeScanner = function() {
     const video = document.getElementById('barcode-scanner');
     const overlay = document.getElementById('barcodeOverlay');
     const scanArea = document.getElementById('scanArea');
-    const startBtn = document.getElementById('startScanner');
-    const stopBtn = document.getElementById('stopScanner');
-    const focusBtn = document.getElementById('focusCamera');
     
     if (currentStream) {
       currentStream.getTracks().forEach(track => track.stop());
@@ -1533,48 +1552,29 @@
     }
     
     isScanning = false;
+    flashEnabled = false;
     
     if (scanArea) {
       scanArea.classList.remove('scanning', 'success', 'error');
     }
     
     if (overlay) {
-      overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-camera" style="font-size:48px;margin-bottom:15px;display:block"></i> اضغط على تشغيل الكاميرا لبدء المسح<div style="margin-top:15px;font-size:14px;color:#ddd">ضع الباركود داخل المستطيل ليتم التعرف عليه تلقائياً</div></div>';
+      overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-camera" style="font-size:48px;margin-bottom:15px;display:block"></i> جاري تشغيل الكاميرا...<div style="margin-top:15px;font-size:14px;color:#ddd">ضع الباركود داخل المستطيل ليتم التعرف عليه تلقائياً</div></div>';
       overlay.style.display = 'flex';
     }
-    
-    if (startBtn) startBtn.disabled = false;
-    if (stopBtn) stopBtn.disabled = true;
-    if (focusBtn) focusBtn.disabled = true;
   };
 
-  window.switchCamera = function() {
-    // إيقاف الكاميرا الحالية
-    window.stopBarcodeScanner();
-    
-    // تبديل نوع الكاميرا
-    currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
-    
-    // إعادة تشغيل الكاميرا بالنوع الجديد
-    setTimeout(() => {
-      window.startBarcodeScanner();
-    }, 1000);
-  };
-
-  // دوال الباركود للمنتجات - نفس التحسينات للقراءة المستمرة
+  // دوال الباركود للمنتجات - نفس التحسينات للقراءة المستمرة والتشغيل التلقائي
   window.startProductBarcodeScanner = async function() {
     const video = document.getElementById('product-barcode-scanner');
     const overlay = document.getElementById('productBarcodeOverlay');
     const scanArea = document.getElementById('productScanArea');
-    const startBtn = document.getElementById('startProductScanner');
-    const stopBtn = document.getElementById('stopProductScanner');
     const applyBtn = document.getElementById('applyBarcode');
-    const focusBtn = document.getElementById('focusProductCamera');
     
     try {
       overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-spinner fa-spin" style="font-size:48px;margin-bottom:15px;display:block"></i> جاري تشغيل الكاميرا...</div>';
       
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const constraints = {
         video: { 
           facingMode: productFacingMode,
           width: { ideal: 1920, min: 1280 },
@@ -1583,7 +1583,14 @@
           focusMode: 'continuous'
         },
         audio: false
-      });
+      };
+      
+      // إضافة الفلاش إذا كان مفعل
+      if (productFlashEnabled) {
+        constraints.video.torch = true;
+      }
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       
       productStream = stream;
       video.srcObject = stream;
@@ -1591,10 +1598,7 @@
       await video.play();
       
       overlay.style.display = 'none';
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
       applyBtn.disabled = true;
-      focusBtn.disabled = false;
       
       // بدء وضع المسح
       if (scanArea) scanArea.classList.add('scanning');
@@ -1702,14 +1706,41 @@
     }
   };
 
+  // دالة تشغيل/إيقاف الفلاش للمنتجات
+  window.toggleProductFlash = async function() {
+    if (!productStream) return;
+    
+    const videoTrack = productStream.getVideoTracks()[0];
+    if (videoTrack && videoTrack.getCapabilities && videoTrack.getCapabilities().torch) {
+      try {
+        productFlashEnabled = !productFlashEnabled;
+        await videoTrack.applyConstraints({
+          advanced: [{ torch: productFlashEnabled }]
+        });
+        
+        const flashBtn = document.getElementById('productFlashToggle');
+        if (productFlashEnabled) {
+          flashBtn.innerHTML = '<i class="fas fa-lightbulb"></i> إيقاف الفلاش';
+          flashBtn.style.background = '#f39c12';
+          showProductBarcodeResult('تم تشغيل الفلاش', true);
+        } else {
+          flashBtn.innerHTML = '<i class="fas fa-lightbulb"></i> تشغيل الفلاش';
+          flashBtn.style.background = '';
+          showProductBarcodeResult('تم إيقاف الفلاش', true);
+        }
+      } catch (e) {
+        showProductBarcodeResult('الفلاش غير مدعوم على هذا الجهاز', false);
+      }
+    } else {
+      showProductBarcodeResult('الفلاش غير مدعوم على هذا الجهاز', false);
+    }
+  };
+
   window.stopProductBarcodeScanner = function() {
     const video = document.getElementById('product-barcode-scanner');
     const overlay = document.getElementById('productBarcodeOverlay');
     const scanArea = document.getElementById('productScanArea');
-    const startBtn = document.getElementById('startProductScanner');
-    const stopBtn = document.getElementById('stopProductScanner');
     const applyBtn = document.getElementById('applyBarcode');
-    const focusBtn = document.getElementById('focusProductCamera');
     
     if (productStream) {
       productStream.getTracks().forEach(track => track.stop());
@@ -1732,27 +1763,12 @@
     if (scanArea) scanArea.classList.remove('scanning', 'success', 'error');
     
     if (overlay) {
-      overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-camera" style="font-size:48px;margin-bottom:15px;display:block"></i> اضغط على تشغيل الكاميرا لبدء مسح الباركود للمنتج<div style="margin-top:15px;font-size:14px;color:#ddd">ضع الباركود داخل المستطيل ليتم التعرف عليه تلقائياً</div></div>';
+      overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-camera" style="font-size:48px;margin-bottom:15px;display:block"></i> جاري تشغيل الكاميرا...<div style="margin-top:15px;font-size:14px;color:#ddd">ضع الباركود داخل المستطيل ليتم التعرف عليه تلقائياً</div></div>';
       overlay.style.display = 'flex';
     }
     
-    if (startBtn) startBtn.disabled = false;
-    if (stopBtn) stopBtn.disabled = true;
     if (applyBtn) applyBtn.disabled = true;
-    if (focusBtn) focusBtn.disabled = true;
-  };
-
-  window.switchProductCamera = function() {
-    // إيقاف الكاميرا الحالية
-    window.stopProductBarcodeScanner();
-    
-    // تبديل نوع الكاميرا
-    productFacingMode = productFacingMode === 'environment' ? 'user' : 'environment';
-    
-    // إعادة تشغيل الكاميرا بالنوع الجديد
-    setTimeout(() => {
-      window.startProductBarcodeScanner();
-    }, 1000);
+    productFlashEnabled = false;
   };
 
   window.focusProductCamera = async function() {
@@ -1795,6 +1811,7 @@
       setTimeout(() => {
         document.getElementById('productBarcodeContent').style.display = 'none';
         document.getElementById('productBarcodeToggle').classList.remove('active');
+        window.stopProductBarcodeScanner();
       }, 2000);
     }
   };
@@ -2196,87 +2213,118 @@
   };
 
   window.saveOrder = async () => {
-    if (cart.length === 0) return alert("أضف منتجات أولاً");
-    let phone = document.getElementById('cphone').value.replace(/[^\d]/g, '');
-    if (!phone.startsWith('01') || phone.length !== 11) return alert("رقم الواتساب لازم 11 رقم يبدأ بـ 01");
-    const fullPhone = '2' + phone;
-    const customerName = document.getElementById('cname').value.trim();
-    const address = document.getElementById('caddr').value.trim();
-    const useDiscount = document.getElementById('applyDiscount').checked;
-    let totalAfter = 0;
+  if (cart.length === 0) return alert("أضف منتجات أولاً");
+  
+  let phone = document.getElementById('cphone').value.replace(/[^\d]/g, '');
+  if (!phone.startsWith('01') || phone.length !== 11) return alert("رقم الواتساب لازم 11 رقم يبدأ بـ 01");
+  
+  const customerName = document.getElementById('cname').value.trim();
+  const address = document.getElementById('caddr').value.trim();
+  const useDiscount = document.getElementById('applyDiscount').checked;
+  let totalAfter = 0;
+  
+  const itemsWithPrice = cart.map(i => {
+    const p = products.find(x => x.id === i.id);
     
-    const itemsWithPrice = cart.map(i => {
-      const p = products.find(x => x.id === i.id);
-      
-      let price;
-      if (useDiscount) {
-        price = p.sellPrice * (1 - (p.discount || 0)/100);
-      } else {
-        price = i.originalPrice || p.sellPrice;
-      }
-      
-      totalAfter += price * i.qty;
-      return {
-        ...i,
-        price: price
-      };
-    });
+    let price;
+    if (useDiscount) {
+      price = p.sellPrice * (1 - (p.discount || 0)/100);
+    } else {
+      price = i.originalPrice || p.sellPrice;
+    }
     
-    const itemsText = itemsWithPrice.map(i => `• ${i.name} × ${i.qty} = ${i.price.toFixed(0)} جنيه`).join('%0A');
-    
-    const saveBtn = document.getElementById('saveOrderBtn');
-    const loading = document.getElementById('orderLoading');
-    saveBtn.disabled = true;
-    loading.style.display = 'block';
-    saveBtn.innerText = "جاري الحفظ والإرسال...";
-    try {
-      await addDoc(collection(db, "orders"), {
-        customerName,
-        customerPhone: '+2' + phone,
-        customerAddress: address,
-        items: itemsWithPrice,
-        totalPrice: totalAfter,
-        orderStatus: document.getElementById('status').value,
-        timestamp: serverTimestamp(),
-        appliedDiscount: useDiscount
-      });
-      for (const i of cart) {
-        await updateDoc(doc(db, "products", i.id), { stock: increment(-i.qty) });
-      }
-      const message = encodeURIComponent(
-`*طلب جديد من Ashry Natural*
+    totalAfter += price * i.qty;
+    return {
+      ...i,
+      price: price
+    };
+  });
+  
+  // بناء نص الرسالة بشكل صحيح
+  const itemsText = itemsWithPrice.map(i => 
+    `• ${i.name} × ${i.qty} = ${(i.price * i.qty).toFixed(0)} جنيه`
+  ).join('\n');
+  
+  const message = `*طلب جديد من Ashry Natural*
+  
 الاسم: ${customerName}
 رقم الواتساب: 0${phone}
 العنوان: ${address}
+
 المنتجات:
-${itemsText.replace(/%0A/g, '\n')}
-*الإجمالي: ${totalAfter.toFixed(0)} جنيه*
+${itemsText}
+
+*الإجمالي: ${totalAfter.toFixed(0)} جنيه مصري*
+
 شكراً لثقتك فينا
-*Ashry Natural - صحتك تهمنا*`
-      );
-      const whatsappUrl = `https://wa.me/${fullPhone}?text=${message}`;
-      const waWindow = window.open(whatsappUrl, '_blank');
-      if (!waWindow || waWindow.closed || typeof waWindow.closed === 'undefined') {
-        setTimeout(() => {
-          if (confirm("المتصفح منع فتح واتساب تلقائيًا\nاضغط موافق لفتحه يدويًا")) {
-            window.open(whatsappUrl, '_blank');
-          }
-        }, 500);
-      }
-      alert("تم حفظ الطلب وفتح واتساب بنجاح!");
-      document.getElementById('customerForm').reset();
-      cart = []; renderCart();
-      document.getElementById('applyDiscount').checked = false;
-      loadOrders(); loadProducts();
-    } catch (err) {
-      console.error(err);
-      alert("فشل الحفظ: " + err.message);
-    } finally {
-      saveBtn.disabled = false;
-      loading.style.display = 'none';
-      saveBtn.innerText = "حفظ الطلب وإرسال واتساب";
+*Ashry Natural - صحتك تهمنا*`;
+  
+  const saveBtn = document.getElementById('saveOrderBtn');
+  const loading = document.getElementById('orderLoading');
+  saveBtn.disabled = true;
+  loading.style.display = 'block';
+  saveBtn.innerText = "جاري الحفظ والإرسال...";
+  
+  try {
+    // حفظ الطلب في Firebase
+    await addDoc(collection(db, "orders"), {
+      customerName,
+      customerPhone: '+2' + phone,
+      customerAddress: address,
+      items: itemsWithPrice,
+      totalPrice: totalAfter,
+      orderStatus: document.getElementById('status').value,
+      timestamp: serverTimestamp(),
+      appliedDiscount: useDiscount
+    });
+    
+    // تحديث المخزون
+    for (const i of cart) {
+      await updateDoc(doc(db, "products", i.id), { stock: increment(-i.qty) });
     }
-  };
+    
+    // إعداد رابط الواتساب بشكل صحيح
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/2${phone}?text=${encodedMessage}`;
+    
+    // محاولة فتح الواتساب
+    const waWindow = window.open(whatsappUrl, '_blank');
+    
+    // إذا فشل فتح النافذة، عرض رسالة بديلة
+    if (!waWindow || waWindow.closed || typeof waWindow.closed === 'undefined') {
+      setTimeout(() => {
+        if (confirm("لم يتم فتح واتساب تلقائياً\nاضغط موافق لفتحه يدويًا، أو cancel للنسخ يدوياً")) {
+          window.open(whatsappUrl, '_blank');
+        } else {
+          // نسخ الرسالة للحافظة
+          navigator.clipboard.writeText(message).then(() => {
+            alert("تم نسخ الرسالة للحافظة!\nيمكنك لصقها في واتساب يدوياً\n\n" + message);
+          }).catch(() => {
+            alert("الرسالة جاهزة للإرسال:\n\n" + message);
+          });
+        }
+      }, 500);
+    }
+    
+    alert("تم حفظ الطلب بنجاح!");
+    
+    // إعادة تعيين النموذج
+    document.getElementById('customerForm').reset();
+    cart = []; 
+    renderCart();
+    document.getElementById('applyDiscount').checked = false;
+    loadOrders(); 
+    loadProducts();
+    
+  } catch (err) {
+    console.error(err);
+    alert("فشل حفظ الطلب: " + err.message);
+  } finally {
+    saveBtn.disabled = false;
+    loading.style.display = 'none';
+    saveBtn.innerText = "حفظ الطلب وإرسال واتساب";
+  }
+};
 
   window.loadOrders = async function() {
     try {
@@ -2634,25 +2682,31 @@ ${itemsText.replace(/%0A/g, '\n')}
     if (searchProducts) searchProducts.addEventListener('input', renderProducts);
     
     // مستمعي أحداث الباركود للطلبات
-    document.getElementById('startScanner').addEventListener('click', window.startBarcodeScanner);
-    document.getElementById('stopScanner').addEventListener('click', window.stopBarcodeScanner);
-    document.getElementById('switchCamera').addEventListener('click', window.switchCamera);
+    document.getElementById('flashToggle').addEventListener('click', window.toggleFlash);
     document.getElementById('focusCamera').addEventListener('click', window.focusCamera);
     
     // مستمعي أحداث الباركود للمنتجات
-    document.getElementById('startProductScanner').addEventListener('click', window.startProductBarcodeScanner);
-    document.getElementById('stopProductScanner').addEventListener('click', window.stopProductBarcodeScanner);
-    document.getElementById('switchProductCamera').addEventListener('click', window.switchProductCamera);
+    document.getElementById('productFlashToggle').addEventListener('click', window.toggleProductFlash);
     document.getElementById('focusProductCamera').addEventListener('click', window.focusProductCamera);
     document.getElementById('applyBarcode').addEventListener('click', window.applyScannedBarcode);
     document.getElementById('scanBarcodeForProduct').addEventListener('click', window.scanBarcodeForProduct);
     
-    // تبديل عرض قسم الباركود
+    // تبديل عرض قسم الباركود مع التشغيل التلقائي
     document.getElementById('barcodeToggle').addEventListener('click', function() {
       const content = document.getElementById('barcodeContent');
       const isVisible = content.style.display === 'block';
       content.style.display = isVisible ? 'none' : 'block';
       this.classList.toggle('active', !isVisible);
+      
+      if (!isVisible) {
+        // تشغيل الكاميرا تلقائياً عند فتح القسم
+        setTimeout(() => {
+          window.startBarcodeScanner();
+        }, 500);
+      } else {
+        // إيقاف الكاميرا عند إغلاق القسم
+        window.stopBarcodeScanner();
+      }
     });
     
     document.getElementById('productBarcodeToggle').addEventListener('click', function() {
@@ -2660,6 +2714,16 @@ ${itemsText.replace(/%0A/g, '\n')}
       const isVisible = content.style.display === 'block';
       content.style.display = isVisible ? 'none' : 'block';
       this.classList.toggle('active', !isVisible);
+      
+      if (!isVisible) {
+        // تشغيل الكاميرا تلقائياً عند فتح القسم
+        setTimeout(() => {
+          window.startProductBarcodeScanner();
+        }, 500);
+      } else {
+        // إيقاف الكاميرا عند إغلاق القسم
+        window.stopProductBarcodeScanner();
+      }
     });
   });
 
