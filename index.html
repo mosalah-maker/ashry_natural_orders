@@ -374,7 +374,6 @@
       cursor: pointer;
     }
     
-    /* أنماط جديدة للباركود - محسنة */
     .barcode-section {
       margin: 20px 0;
       padding: 20px;
@@ -481,7 +480,6 @@
       padding: 10px 15px;
     }
     
-    /* مستطيل المسح الجديد */
     .scan-area {
       position: absolute;
       top: 50%;
@@ -526,7 +524,6 @@
       display: block;
     }
     
-    /* مؤشر التكبير */
     .zoom-indicator {
       position: absolute;
       bottom: 10px;
@@ -540,7 +537,6 @@
       z-index: 10;
     }
     
-    /* إرشادات المسح */
     .scan-instructions {
       position: absolute;
       top: 10px;
@@ -741,6 +737,27 @@
         background: #1e3c72 !important;
         color: white !important;
       }
+    }
+    
+    .debug-info {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 10px 0;
+      font-size: 14px;
+    }
+    
+    .debug-success {
+      background: #d1ecf1;
+      border: 1px solid #bee5eb;
+      color: #0c5460;
+    }
+    
+    .debug-error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
     }
   </style>
 </head>
@@ -961,15 +978,25 @@
 
   <div id="products" class="card" style="display:none">
     <h2>إدارة المنتجات</h2>
+    
+    <!-- قسم تشخيص المشاكل -->
+    <div class="debug-info" id="debugInfo">
+      <h4><i class="fas fa-bug"></i> معلومات التشخيص</h4>
+      <div id="debugContent">جاري التحقق من اتصال قاعدة البيانات...</div>
+    </div>
+    
     <div style="margin:20px 0; text-align:center;">
       <button class="success export-btn" id="exportProductsBtn">تصدير إلى إكسيل</button>
       <button class="danger export-btn" id="deleteAllProductsBtn">حذف كل المنتجات</button>
       <button class="orange export-btn" id="importExcelBtn">استيراد من إكسل</button>
+      <button class="success export-btn" id="testConnectionBtn">اختبار الاتصال</button>
+      <button class="orange export-btn" id="addSampleProductsBtn">إضافة منتجات تجريبية</button>
       <input type="file" id="importExcel" accept=".xlsx,.xls" style="display:none;">
       <div style="margin-top:12px; color:#555; font-size:14px;">
         الأعمدة المطلوبة: <strong>اسم المنتج | الكمية | سعر البيع | الخصم % | رابط الصورة (اختياري) | الباركود (اختياري)</strong>
       </div>
     </div>
+    
     <input type="text" id="searchProducts" placeholder="بحث عن منتج...">
     
     <!-- قسم الباركود في صفحة المنتجات -->
@@ -1068,15 +1095,17 @@
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
   import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, increment, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-  const app = initializeApp({
+  // إعدادات Firebase - تم التعديل بناءً على إعداداتك
+  const firebaseConfig = {
     apiKey: "AIzaSyAuRBWr54OUPpH63rYX2GuX5UGMippYSkQ",
     authDomain: "ashrynutral.firebaseapp.com",
     projectId: "ashrynutral",
     storageBucket: "ashrynutral.appspot.com",
     messagingSenderId: "272736958880",
     appId: "1:272736958880:web:5d565a91be484a9cbf4cc5"
-  });
+  };
 
+  const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
   const IMGBB_API_KEY = "6e0b6ad4c71f839987c098fe183beca5";
@@ -1089,6 +1118,7 @@
   let scannedBarcodeValue = '';
   let isScanning = false;
   let quaggaInitialized = false;
+  let quaggaProductInitialized = false;
 
   // تعريف الدوال في النطاق العالمي
   window.renderCart = function() {
@@ -1251,7 +1281,11 @@
       
       // إعادة تهيئة Quagga إذا كان قد تم تهيئته من قبل
       if (quaggaInitialized) {
-        Quagga.stop();
+        try {
+          Quagga.stop();
+        } catch (e) {
+          console.log('Quagga لم يكن يعمل:', e);
+        }
       }
       
       // تهيئة Quagga للتعرف على الباركود مع إعدادات محسنة
@@ -1314,23 +1348,25 @@
         const drawingCtx = Quagga.canvas.ctx.overlay;
         const drawingCanvas = Quagga.canvas.dom.overlay;
         
-        drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.getAttribute("width")), parseInt(drawingCanvas.getAttribute("height")));
-        
-        if (result.boxes) {
-          drawingCtx.strokeStyle = "#00FF00";
-          result.boxes.filter(function(box) {
-            return box !== result.box;
-          }).forEach(function(box) {
-            Quagga.ImageDebug.drawPath(box, {x: 0, y: 1}, drawingCtx, {color: "green", lineWidth: 2});
-          });
-        }
-        
-        if (result.box) {
-          Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCtx, {color: "#00F", lineWidth: 2});
-        }
-        
-        if (result.codeResult && result.codeResult.code) {
-          Quagga.ImageDebug.drawPath(result.line, {x: 'x', y: 'y'}, drawingCtx, {color: 'red', lineWidth: 3});
+        if (drawingCtx && drawingCanvas) {
+          drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.getAttribute("width")), parseInt(drawingCanvas.getAttribute("height")));
+          
+          if (result.boxes) {
+            drawingCtx.strokeStyle = "#00FF00";
+            result.boxes.filter(function(box) {
+              return box !== result.box;
+            }).forEach(function(box) {
+              Quagga.ImageDebug.drawPath(box, {x: 0, y: 1}, drawingCtx, {color: "green", lineWidth: 2});
+            });
+          }
+          
+          if (result.box) {
+            Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCtx, {color: "#00F", lineWidth: 2});
+          }
+          
+          if (result.codeResult && result.codeResult.code) {
+            Quagga.ImageDebug.drawPath(result.line, {x: 'x', y: 'y'}, drawingCtx, {color: 'red', lineWidth: 3});
+          }
         }
       });
       
@@ -1353,7 +1389,11 @@
         
         // إيقاف المسح بعد التعرف على الباركود
         isScanning = false;
-        Quagga.stop();
+        try {
+          Quagga.stop();
+        } catch (e) {
+          console.log('خطأ في إيقاف Quagga:', e);
+        }
         
         // البحث عن المنتج باستخدام الباركود
         const product = findProductByBarcode(code);
@@ -1370,7 +1410,11 @@
               scanArea.classList.remove('success');
               scanArea.classList.add('scanning');
               isScanning = true;
-              Quagga.start();
+              try {
+                Quagga.start();
+              } catch (e) {
+                console.log('خطأ في إعادة تشغيل Quagga:', e);
+              }
             }, 2000);
           }, 1500);
         } else {
@@ -1383,7 +1427,11 @@
             scanArea.classList.remove('error');
             scanArea.classList.add('scanning');
             isScanning = true;
-            Quagga.start();
+            try {
+              Quagga.start();
+            } catch (e) {
+              console.log('خطأ في إعادة تشغيل Quagga:', e);
+            }
           }, 3000);
         }
       });
@@ -1477,15 +1525,29 @@
       video.srcObject = null;
     }
     
-    Quagga.stop();
+    if (quaggaInitialized) {
+      try {
+        Quagga.stop();
+      } catch (e) {
+        console.log('Quagga لم يكن يعمل عند الإيقاف:', e);
+      }
+      quaggaInitialized = false;
+    }
+    
     isScanning = false;
     
-    scanArea.classList.remove('scanning', 'success', 'error');
-    overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-camera" style="font-size:48px;margin-bottom:15px;display:block"></i> اضغط على تشغيل الكاميرا لبدء المسح<div style="margin-top:15px;font-size:14px;color:#ddd">ضع الباركود داخل المستطيل ليتم التعرف عليه تلقائياً</div></div>';
-    overlay.style.display = 'flex';
-    startBtn.disabled = false;
-    stopBtn.disabled = true;
-    focusBtn.disabled = true;
+    if (scanArea) {
+      scanArea.classList.remove('scanning', 'success', 'error');
+    }
+    
+    if (overlay) {
+      overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-camera" style="font-size:48px;margin-bottom:15px;display:block"></i> اضغط على تشغيل الكاميرا لبدء المسح<div style="margin-top:15px;font-size:14px;color:#ddd">ضع الباركود داخل المستطيل ليتم التعرف عليه تلقائياً</div></div>';
+      overlay.style.display = 'flex';
+    }
+    
+    if (startBtn) startBtn.disabled = false;
+    if (stopBtn) stopBtn.disabled = true;
+    if (focusBtn) focusBtn.disabled = true;
   };
 
   window.switchCamera = function() {
@@ -1588,6 +1650,7 @@
         }
         
         Quagga.start();
+        quaggaProductInitialized = true;
         console.log('Quagga for products started successfully with improved settings');
       });
       
@@ -1607,7 +1670,11 @@
         }
         
         // إيقاف المسح بعد التعرف على الباركود
-        Quagga.stop();
+        try {
+          Quagga.stop();
+        } catch (e) {
+          console.log('خطأ في إيقاف Quagga:', e);
+        }
         
         scannedBarcodeValue = code;
         document.getElementById('scannedBarcode').value = code;
@@ -1620,7 +1687,11 @@
           if (scanArea) {
             scanArea.classList.remove('success');
             scanArea.classList.add('scanning');
-            Quagga.start();
+            try {
+              Quagga.start();
+            } catch (e) {
+              console.log('خطأ في إعادة تشغيل Quagga:', e);
+            }
           }
         }, 2000);
       });
@@ -1651,15 +1722,26 @@
       video.srcObject = null;
     }
     
-    Quagga.stop();
+    if (quaggaProductInitialized) {
+      try {
+        Quagga.stop();
+      } catch (e) {
+        console.log('Quagga للمنتجات لم يكن يعمل عند الإيقاف:', e);
+      }
+      quaggaProductInitialized = false;
+    }
     
     if (scanArea) scanArea.classList.remove('scanning', 'success', 'error');
-    overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-camera" style="font-size:48px;margin-bottom:15px;display:block"></i> اضغط على تشغيل الكاميرا لبدء مسح الباركود للمنتج<div style="margin-top:15px;font-size:14px;color:#ddd">ضع الباركود داخل المستطيل ليتم التعرف عليه تلقائياً</div></div>';
-    overlay.style.display = 'flex';
-    startBtn.disabled = false;
-    stopBtn.disabled = true;
-    applyBtn.disabled = true;
-    focusBtn.disabled = true;
+    
+    if (overlay) {
+      overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-camera" style="font-size:48px;margin-bottom:15px;display:block"></i> اضغط على تشغيل الكاميرا لبدء مسح الباركود للمنتج<div style="margin-top:15px;font-size:14px;color:#ddd">ضع الباركود داخل المستطيل ليتم التعرف عليه تلقائياً</div></div>';
+      overlay.style.display = 'flex';
+    }
+    
+    if (startBtn) startBtn.disabled = false;
+    if (stopBtn) stopBtn.disabled = true;
+    if (applyBtn) applyBtn.disabled = true;
+    if (focusBtn) focusBtn.disabled = true;
   };
 
   window.switchProductCamera = function() {
@@ -1732,26 +1814,30 @@
 
   function showBarcodeResult(message, isSuccess) {
     const resultDiv = document.getElementById('barcodeResult');
-    resultDiv.textContent = message;
-    resultDiv.className = `barcode-result ${isSuccess ? 'success' : 'error'}`;
-    resultDiv.style.display = 'block';
-    
-    // إخفاء الرسالة بعد 5 ثواني
-    setTimeout(() => {
-      resultDiv.style.display = 'none';
-    }, 5000);
+    if (resultDiv) {
+      resultDiv.textContent = message;
+      resultDiv.className = `barcode-result ${isSuccess ? 'success' : 'error'}`;
+      resultDiv.style.display = 'block';
+      
+      // إخفاء الرسالة بعد 5 ثواني
+      setTimeout(() => {
+        resultDiv.style.display = 'none';
+      }, 5000);
+    }
   }
 
   function showProductBarcodeResult(message, isSuccess) {
     const resultDiv = document.getElementById('productBarcodeResult');
-    resultDiv.textContent = message;
-    resultDiv.className = `barcode-result ${isSuccess ? 'success' : 'error'}`;
-    resultDiv.style.display = 'block';
-    
-    // إخفاء الرسالة بعد 5 ثواني
-    setTimeout(() => {
-      resultDiv.style.display = 'none';
-    }, 5000);
+    if (resultDiv) {
+      resultDiv.textContent = message;
+      resultDiv.className = `barcode-result ${isSuccess ? 'success' : 'error'}`;
+      resultDiv.style.display = 'block';
+      
+      // إخفاء الرسالة بعد 5 ثواني
+      setTimeout(() => {
+        resultDiv.style.display = 'none';
+      }, 5000);
+    }
   }
 
   function addProductToCartByBarcode(productId) {
@@ -1781,28 +1867,65 @@
   }
 
   window.showPage = function(s) {
-    document.querySelectorAll('.card:not(#login), #invoice').forEach(el => el.style.display = 'none');
-    document.getElementById(s).style.display = 'block';
-    document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
-    document.querySelector(`[onclick="window.showPage('${s}')"]`)?.classList.add('active');
+    console.log('🔄 تحويل للصفحة:', s);
+    
+    // إخفاء كل الصفحات
+    document.querySelectorAll('.card:not(#login), #invoice').forEach(function(el) {
+        el.style.display = 'none';
+    });
+    
+    // إظهار الصفحة المطلوبة
+    const targetPage = document.getElementById(s);
+    if (targetPage) {
+        targetPage.style.display = 'block';
+        console.log('✅ تم إظهار الصفحة:', s);
+    } else {
+        console.error('❌ الصفحة غير موجودة:', s);
+    }
+    
+    // تحديث القائمة الجانبية
+    document.querySelectorAll('.sidebar a').forEach(function(a) {
+        a.classList.remove('active');
+    });
+    
+    const activeLink = document.querySelector('[onclick="window.showPage(\'' + s + '\')"]');
+    if (activeLink) {
+        activeLink.classList.add('active');
+    }
     
     // إيقاف الماسح الضوئي عند تغيير الصفحة
     if (s !== 'add-order') {
-      window.stopBarcodeScanner();
+        if (window.stopBarcodeScanner) window.stopBarcodeScanner();
     }
     if (s !== 'products') {
-      window.stopProductBarcodeScanner();
+        if (window.stopProductBarcodeScanner) window.stopProductBarcodeScanner();
     }
     
-    if(s==='orders') loadOrders();
-    if(s==='products') { loadProducts(); document.getElementById('searchProducts').value = ''; }
-    if(s==='add-order') { 
-      cart = []; 
-      renderCart(); 
-      document.getElementById('applyDiscount').checked = false; 
-      loadProductsForCart(); 
+    // تحميل البيانات حسب الصفحة
+    if (s === 'orders') {
+        if (window.loadOrders) window.loadOrders();
     }
-    if(s==='dashboard') updateDashboard();
+    if (s === 'products') { 
+        // إضافة تأخير لضمان تحميل الـ DOM أولاً
+        setTimeout(function() {
+            console.log('📦 تحميل صفحة المنتجات...');
+            if (window.loadProducts) window.loadProducts(); 
+            const searchInput = document.getElementById('searchProducts');
+            if (searchInput) {
+                searchInput.value = '';
+            }
+        }, 100);
+    }
+    if (s === 'add-order') { 
+        cart = []; 
+        if (window.renderCart) window.renderCart(); 
+        const discountCheckbox = document.getElementById('applyDiscount');
+        if (discountCheckbox) discountCheckbox.checked = false; 
+        if (loadProductsForCart) loadProductsForCart(); 
+    }
+    if (s === 'dashboard') {
+        if (updateDashboard) updateDashboard();
+    }
   };
 
   window.logout = () => {
@@ -1836,71 +1959,228 @@
       });
   };
 
-  onAuthStateChanged(auth, user => {
-    if (user) {
-      document.getElementById('login').style.display = 'none';
-      document.querySelector('.sidebar').style.display = 'block';
-      document.getElementById('menuBtn').style.display = window.innerWidth <= 992 ? 'block' : 'none';
-      window.showPage('dashboard');
-      setInterval(() => document.getElementById('currentTime').innerText = new Date().toLocaleString('ar-EG'), 1000);
-      loadProducts();
-      loadOrders();
-    } else {
-      hideEverythingExceptLogin();
+  // دالة اختبار اتصال Firebase
+  window.testFirebaseConnection = async function() {
+    const debugContent = document.getElementById('debugContent');
+    if (!debugContent) return false;
+    
+    debugContent.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري اختبار اتصال Firebase...';
+    
+    try {
+      // اختبار جلب البيانات من مجموعة products
+      const productsRef = collection(db, "products");
+      const snapshot = await getDocs(productsRef);
+      
+      const productCount = snapshot.size;
+      debugContent.innerHTML = `
+        <div class="debug-success">
+          <p><i class="fas fa-check-circle"></i> <strong>الاتصال بنجاح!</strong></p>
+          <p>عدد المنتجات في قاعدة البيانات: <strong>${productCount}</strong></p>
+          <p>Project ID: <strong>${firebaseConfig.projectId}</strong></p>
+        </div>
+      `;
+      
+      console.log('✅ اتصال Firebase ناجح، عدد المنتجات:', productCount);
+      return true;
+    } catch (error) {
+      debugContent.innerHTML = `
+        <div class="debug-error">
+          <p><i class="fas fa-exclamation-triangle"></i> <strong>خطأ في الاتصال!</strong></p>
+          <p>الخطأ: ${error.message}</p>
+          <p>رمز الخطأ: ${error.code}</p>
+          <p>تأكد من: 
+            <ul>
+              <li>صحة إعدادات Firebase</li>
+              <li>وجود مجموعة products في قاعدة البيانات</li>
+              <li>صلاحيات الأمان في Firebase</li>
+            </ul>
+          </p>
+        </div>
+      `;
+      console.error('❌ خطأ في اتصال Firebase:', error);
+      return false;
     }
-  });
+  };
 
-  async function loadProducts() {
-  try {
-    const snap = await getDocs(collection(db, "products"));
-    products = snap.docs.map(d => {
-      const data = d.data();
-      return {
-        id: d.id,
-        name: data.name || '',
-        stock: data.stock || 0,
-        sellPrice: data.sellPrice || 0,
-        discount: data.discount || 0,
-        imageUrl: data.imageUrl || '',
-        barcode: data.barcode || ''
-      };
+  // دالة إضافة منتجات تجريبية
+  window.addSampleProducts = async function() {
+    const sampleProducts = [
+      {
+        name: "زيت زيتون بكر ممتاز",
+        stock: 50,
+        sellPrice: 120,
+        discount: 10,
+        barcode: "1234567890123",
+        imageUrl: ""
+      },
+      {
+        name: "عسل طبيعي 100%",
+        stock: 30,
+        sellPrice: 150,
+        discount: 5,
+        barcode: "2345678901234",
+        imageUrl: ""
+      },
+      {
+        name: "تمور مجدول",
+        stock: 100,
+        sellPrice: 80,
+        discount: 0,
+        barcode: "3456789012345",
+        imageUrl: ""
+      }
+    ];
+
+    try {
+      for (const product of sampleProducts) {
+        await addDoc(collection(db, "products"), product);
+      }
+      alert("✅ تم إضافة المنتجات التجريبية بنجاح!");
+      window.loadProducts();
+    } catch (error) {
+      alert("❌ فشل إضافة المنتجات التجريبية: " + error.message);
+    }
+  };
+
+  // دالة تحميل المنتجات مع تحسينات التشخيص
+  window.loadProducts = async function() {
+    const debugContent = document.getElementById('debugContent');
+    
+    try {
+      console.log('🔄 جاري تحميل المنتجات من Firebase...');
+      if (debugContent) {
+        debugContent.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تحميل المنتجات...';
+      }
+      
+      const productsRef = collection(db, "products");
+      const snap = await getDocs(productsRef);
+      
+      products = [];
+      snap.forEach(doc => {
+        const data = doc.data();
+        console.log('📦 بيانات المنتج:', doc.id, data);
+        
+        const productData = {
+          id: doc.id,
+          name: data.name || 'بدون اسم',
+          stock: data.stock || 0,
+          sellPrice: data.sellPrice || 0,
+          discount: data.discount || 0,
+          imageUrl: data.imageUrl || '',
+          barcode: data.barcode || ''
+        };
+        
+        products.push(productData);
+      });
+      
+      console.log('✅ عدد المنتجات المحملة:', products.length);
+      if (debugContent) {
+        debugContent.innerHTML = `
+          <div class="debug-success">
+            <p><i class="fas fa-check-circle"></i> <strong>تم تحميل المنتجات بنجاح!</strong></p>
+            <p>عدد المنتجات: <strong>${products.length}</strong></p>
+          </div>
+        `;
+      }
+      
+      // عرض المنتجات بعد تحميلها
+      window.renderProducts();
+      
+    } catch (error) {
+      console.error('❌ خطأ في تحميل المنتجات:', error);
+      if (debugContent) {
+        debugContent.innerHTML = `
+          <div class="debug-error">
+            <p><i class="fas fa-exclamation-triangle"></i> <strong>فشل تحميل المنتجات!</strong></p>
+            <p>الخطأ: ${error.message}</p>
+            <p>تأكد من:
+              <ul>
+                <li>وجود مجموعة products في Firebase</li>
+                <li>صلاحيات القراءة في قواعد الأمان</li>
+                <li>اتصال الإنترنت</li>
+              </ul>
+            </p>
+          </div>
+        `;
+      }
+    }
+  };
+
+  // دالة عرض المنتجات
+  window.renderProducts = function() {
+    console.log('🔄 بدء renderProducts');
+    console.log('📦 عدد المنتجات:', products.length);
+    
+    let productsList = document.getElementById('productsList');
+    if (!productsList) {
+        console.error('❌ element productsList مش موجود في الـ DOM');
+        return;
+    }
+    
+    const searchInput = document.getElementById('searchProducts');
+    const term = searchInput ? searchInput.value.toLowerCase() : '';
+    
+    console.log('🔍 البحث عن:', term);
+    
+    const filtered = products.filter(function(p) {
+        if (!p) return false;
+        const nameMatch = p.name && p.name.toLowerCase().includes(term);
+        const barcodeMatch = p.barcode && p.barcode.toLowerCase().includes(term);
+        return nameMatch || barcodeMatch;
     });
     
-    console.log('المنتجات المحملة:', products.length); // للتأكد من جلب البيانات
-    renderProducts();
-    loadProductsForCart();
-    loadProductsForEditCart();
-  } catch (error) {
-    console.error('خطأ في تحميل المنتجات:', error);
-    alert('خطأ في تحميل المنتجات: ' + error.message);
-  }
-}
-
-  // إضافة دالة renderProducts المفقودة
-  function renderProducts() {
-    const term = (document.getElementById('searchProducts')?.value || '').toLowerCase();
-    const filtered = products.filter(p => p.name.toLowerCase().includes(term) || (p.barcode && p.barcode.toLowerCase().includes(term)));
-    document.getElementById('productsList').innerHTML = filtered.map(p => {
-      const priceAfter = p.sellPrice * (1 - (p.discount || 0)/100);
-      return `<tr>
-        <td>${p.imageUrl ? `<img src="${p.imageUrl}" class="product-img-table">` : 'لا صورة'}</td>
-        <td><strong>${p.name}</strong></td>
-        <td>${p.stock > 0 ? p.stock : '<span style="color:red">نفد</span>'}</td>
-        <td>${p.sellPrice} ج</td>
-        <td><strong style="color:var(--o)">${p.discount}%</strong></td>
-        <td style="background:#fff8e1">${priceAfter.toFixed(0)} ج</td>
-        <td>${p.barcode || 'لا يوجد'}</td>
-        <td class="action-btns">
-          <button class="orange small" onclick="window.editProduct('${p.id}')">تعديل</button>
-          <button class="danger small" onclick="window.delP('${p.id}')">حذف</button>
-        </td>
-      </tr>`;
-    }).join('') || '<tr><td colspan="8" style="text-align:center;padding:50px;color:#999">لا توجد منتجات</td></tr>';
-  }
+    console.log('✅ المنتجات المفلترة:', filtered.length);
+    
+    if (filtered.length === 0) {
+        productsList.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align:center;padding:50px;color:#999">
+              <i class="fas fa-box-open" style="font-size:48px;margin-bottom:20px;display:block;color:#ccc;"></i>
+              لا توجد منتجات
+              <br>
+              <button onclick="window.addSampleProducts()" class="success small" style="margin-top:15px;">
+                <i class="fas fa-plus"></i> إضافة منتجات تجريبية
+              </button>
+            </td>
+          </tr>
+        `;
+        return;
+    }
+    
+    let html = '';
+    filtered.forEach(function(p) {
+        if (!p) return;
+        const priceAfter = (p.sellPrice || 0) * (1 - (p.discount || 0)/100);
+        html += `
+            <tr>
+                <td>${p.imageUrl ? '<img src="' + p.imageUrl + '" class="product-img-table" alt="' + p.name + '">' : '<div style="width:60px;height:60px;background:#f0f0f0;border-radius:8px;display:flex;align-items:center;justify-content:center;"><i class="fas fa-image" style="color:#ccc;"></i></div>'}</td>
+                <td><strong>${p.name || 'بدون اسم'}</strong></td>
+                <td>${(p.stock || 0) > 0 ? p.stock : '<span style="color:red">نفد</span>'}</td>
+                <td>${p.sellPrice || 0} ج</td>
+                <td><strong style="color:var(--o)">${p.discount || 0}%</strong></td>
+                <td style="background:#fff8e1">${priceAfter.toFixed(0)} ج</td>
+                <td>${p.barcode || 'لا يوجد'}</td>
+                <td class="action-btns">
+                    <button class="orange small" onclick="window.editProduct('${p.id}')">تعديل</button>
+                    <button class="danger small" onclick="window.delP('${p.id}')">حذف</button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    productsList.innerHTML = html;
+    console.log('✅ تم عرض المنتجات بنجاح');
+  };
 
   function loadProductsForCart() {
     const input = document.getElementById('prodSearch');
     const select = document.getElementById('prodSelect');
+    
+    if (!input || !select) {
+      console.error('❌ عناصر البحث عن المنتجات غير موجودة');
+      return;
+    }
+    
     input.oninput = () => {
       const term = input.value.toLowerCase();
       select.innerHTML = '';
@@ -1911,13 +2191,25 @@
       });
       select.style.display = select.options.length ? 'block' : 'none';
     };
+    
     input.onclick = () => input.oninput();
-    select.onchange = () => { input.value = select.selectedOptions[0].text.split(' - ')[0]; select.style.display = 'none'; };
+    select.onchange = () => { 
+      if (select.selectedOptions.length > 0) {
+        input.value = select.selectedOptions[0].text.split(' - ')[0]; 
+        select.style.display = 'none'; 
+      }
+    };
   }
 
   function loadProductsForEditCart() {
     const input = document.getElementById('editProdSearch');
     const select = document.getElementById('editProdSelect');
+    
+    if (!input || !select) {
+      console.error('❌ عناصر البحث عن المنتجات للتعديل غير موجودة');
+      return;
+    }
+    
     input.oninput = () => {
       const term = input.value.toLowerCase();
       select.innerHTML = '';
@@ -1927,8 +2219,14 @@
       });
       select.style.display = select.options.length ? 'block' : 'none';
     };
+    
     input.onclick = () => input.oninput();
-    select.onchange = () => { input.value = select.selectedOptions[0].text.split(' - ')[0]; select.style.display = 'none'; };
+    select.onchange = () => { 
+      if (select.selectedOptions.length > 0) {
+        input.value = select.selectedOptions[0].text.split(' - ')[0]; 
+        select.style.display = 'none'; 
+      }
+    };
   }
 
   window.addToCart = () => {
@@ -2079,15 +2377,22 @@ ${itemsText.replace(/%0A/g, '\n')}
     }
   };
 
-  async function loadOrders() {
-    const snap = await getDocs(query(collection(db,"orders"), orderBy("timestamp","desc")));
-    orders = snap.docs.map(d => ({id: d.id, ...d.data()}));
-    renderOrders(); 
-    updateDashboard();
+  window.loadOrders = async function() {
+    try {
+      const snap = await getDocs(query(collection(db,"orders"), orderBy("timestamp","desc")));
+      orders = snap.docs.map(d => ({id: d.id, ...d.data()}));
+      renderOrders(); 
+      updateDashboard();
+    } catch (error) {
+      console.error('❌ خطأ في تحميل الطلبات:', error);
+    }
   }
 
   // إضافة الدالة المفقودة renderOrders
-  function renderOrders() {
+  window.renderOrders = function() {
+    const ordersList = document.getElementById('ordersList');
+    if (!ordersList) return;
+    
     const term = (document.getElementById('searchOrders')?.value || '').toLowerCase();
     const filtered = orders.filter(o => 
       o.customerName.toLowerCase().includes(term) || 
@@ -2095,7 +2400,7 @@ ${itemsText.replace(/%0A/g, '\n')}
       o.items.some(i => i.name.toLowerCase().includes(term))
     );
     
-    document.getElementById('ordersList').innerHTML = filtered.map(o => {
+    ordersList.innerHTML = filtered.map(o => {
       const items = o.items.map(i => `${i.name}×${i.qty}`).join('، ');
       const date = o.timestamp?.toDate?.()?.toLocaleString('ar-EG') || '';
       const updated = o.updatedAt ? ` (محدث: ${o.updatedAt.toDate().toLocaleString('ar-EG')})` : '';
@@ -2318,9 +2623,13 @@ ${itemsText.replace(/%0A/g, '\n')}
           added++;
         }
         alert(`تم الاستيراد!\nأُضيف: ${added}\nتم تجاهل: ${skipped}`);
-        loadProducts();
+        
+        window.loadProducts();
+        
         e.target.value = "";
-      } catch (err) { alert("فشل قراءة الملف! تأكد من صيغة الإكسيل"); }
+      } catch (err) { 
+        alert("فشل قراءة الملف! تأكد من صيغة الإكسيل"); 
+      }
     };
     reader.readAsArrayBuffer(file);
   };
@@ -2417,9 +2726,15 @@ ${itemsText.replace(/%0A/g, '\n')}
     });
     document.getElementById('importExcel').addEventListener('change', window.importProductsFromExcel);
     
+    // مستمعي أحداث التشخيص
+    document.getElementById('testConnectionBtn').addEventListener('click', window.testFirebaseConnection);
+    document.getElementById('addSampleProductsBtn').addEventListener('click', window.addSampleProducts);
+    
     // مستمعي أحداث البحث
-    document.getElementById('searchOrders').addEventListener('input', renderOrders);
-    document.getElementById('searchProducts').addEventListener('input', renderProducts);
+    const searchOrders = document.getElementById('searchOrders');
+    const searchProducts = document.getElementById('searchProducts');
+    if (searchOrders) searchOrders.addEventListener('input', renderOrders);
+    if (searchProducts) searchProducts.addEventListener('input', renderProducts);
     
     // مستمعي أحداث الباركود للطلبات
     document.getElementById('startScanner').addEventListener('click', window.startBarcodeScanner);
@@ -2450,6 +2765,36 @@ ${itemsText.replace(/%0A/g, '\n')}
       this.classList.toggle('active', !isVisible);
     });
   });
+
+  // عند تحميل الصفحة، اختبر الاتصال تلقائياً
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      document.getElementById('login').style.display = 'none';
+      document.querySelector('.sidebar').style.display = 'block';
+      document.getElementById('menuBtn').style.display = window.innerWidth <= 992 ? 'block' : 'none';
+      window.showPage('dashboard');
+      setInterval(() => {
+        const currentTime = document.getElementById('currentTime');
+        if (currentTime) {
+          currentTime.innerText = new Date().toLocaleString('ar-EG');
+        }
+      }, 1000);
+      
+      // اختبر الاتصال عند تسجيل الدخول
+      setTimeout(() => {
+        window.testFirebaseConnection().then(success => {
+          if (success) {
+            window.loadProducts();
+            window.loadOrders();
+          }
+        });
+      }, 1000);
+      
+    } else {
+      hideEverythingExceptLogin();
+    }
+  });
+  
 </script>
 
 </body>
