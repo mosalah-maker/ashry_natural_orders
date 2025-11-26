@@ -1228,7 +1228,7 @@
       </div>`;
   };
 
-  // دوال الباركود للطلبات - محسنة للدقة
+  // دوال الباركود للطلبات - محسنة للقراءة المستمرة
   window.startBarcodeScanner = async function() {
     const video = document.getElementById('barcode-scanner');
     const overlay = document.getElementById('barcodeOverlay');
@@ -1382,11 +1382,10 @@
         }
         
         // تغيير لون المستطيل إلى الأخضر للإشارة إلى النجاح
-        const scanArea = document.getElementById('scanArea');
         scanArea.classList.remove('scanning');
         scanArea.classList.add('success');
         
-        // إيقاف المسح بعد التعرف على الباركود
+        // إيقاف المسح مؤقتاً بعد التعرف على الباركود
         isScanning = false;
         try {
           Quagga.stop();
@@ -1404,7 +1403,7 @@
           setTimeout(() => {
             addProductToCartByBarcode(product.id);
             
-            // إعادة تعيين المستطيل بعد إضافة المنتج
+            // إعادة تعيين المستطيل وإعادة تشغيل الماسح بعد إضافة المنتج
             setTimeout(() => {
               scanArea.classList.remove('success');
               scanArea.classList.add('scanning');
@@ -1414,14 +1413,14 @@
               } catch (e) {
                 console.log('خطأ في إعادة تشغيل Quagga:', e);
               }
-            }, 2000);
-          }, 1500);
+            }, 1000); // تقليل وقت الانتظار إلى ثانية واحدة فقط
+          }, 500);
         } else {
           showBarcodeResult(`لم يتم العثور على منتج بالباركود: ${code}`, false);
           scanArea.classList.remove('success');
           scanArea.classList.add('error');
           
-          // إعادة تعيين المستطيل بعد الخطأ
+          // إعادة تعيين المستطيل وإعادة تشغيل الماسح بعد الخطأ
           setTimeout(() => {
             scanArea.classList.remove('error');
             scanArea.classList.add('scanning');
@@ -1431,7 +1430,7 @@
             } catch (e) {
               console.log('خطأ في إعادة تشغيل Quagga:', e);
             }
-          }, 3000);
+          }, 2000); // وقت انتظار أطول قليلاً في حالة الخطأ
         }
       });
       
@@ -1562,7 +1561,7 @@
     }, 1000);
   };
 
-  // دوال الباركود للمنتجات - نفس التحسينات
+  // دوال الباركود للمنتجات - نفس التحسينات للقراءة المستمرة
   window.startProductBarcodeScanner = async function() {
     const video = document.getElementById('product-barcode-scanner');
     const overlay = document.getElementById('productBarcodeOverlay');
@@ -1668,7 +1667,7 @@
           scanArea.classList.add('success');
         }
         
-        // إيقاف المسح بعد التعرف على الباركود
+        // إيقاف المسح مؤقتاً بعد التعرف على الباركود
         try {
           Quagga.stop();
         } catch (e) {
@@ -1681,7 +1680,7 @@
         
         showProductBarcodeResult(`تم مسح الباركود: ${code}`, true);
         
-        // إعادة تعيين المستطيل بعد النجاح
+        // إعادة تعيين المستطيل وإعادة تشغيل الماسح بعد النجاح
         setTimeout(() => {
           if (scanArea) {
             scanArea.classList.remove('success');
@@ -1692,7 +1691,7 @@
               console.log('خطأ في إعادة تشغيل Quagga:', e);
             }
           }
-        }, 2000);
+        }, 1000); // تقليل وقت الانتظار إلى ثانية واحدة فقط
       });
       
     } catch (error) {
