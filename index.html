@@ -9,7 +9,6 @@
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
   <style>
-    /* جميع الأنماط السابقة تبقى كما هي */
     :root {
       --p: #1e3c72;
       --s: #2a5298;
@@ -2503,10 +2502,10 @@ ${orderItems}
         if (window.renderCart) window.renderCart(); 
         const discountCheckbox = document.getElementById('applyDiscount');
         if (discountCheckbox) discountCheckbox.checked = false; 
-        if (loadProductsForCart) loadProductsForCart(); 
+        if (window.loadProductsForCart) window.loadProductsForCart(); 
     }
     if (s === 'dashboard') {
-        if (updateDashboard) updateDashboard();
+        if (window.updateDashboard) window.updateDashboard();
     }
   };
 
@@ -2685,7 +2684,7 @@ ${orderItems}
     console.log('✅ تم عرض المنتجات بنجاح');
   };
 
-  function loadProductsForCart() {
+  window.loadProductsForCart = function() {
     const input = document.getElementById('prodSearch');
     const select = document.getElementById('prodSelect');
     
@@ -2712,9 +2711,9 @@ ${orderItems}
         select.style.display = 'none'; 
       }
     };
-  }
+  };
 
-  function loadProductsForEditCart() {
+  window.loadProductsForEditCart = function() {
     const input = document.getElementById('editProdSearch');
     const select = document.getElementById('editProdSelect');
     
@@ -2740,7 +2739,7 @@ ${orderItems}
         select.style.display = 'none'; 
       }
     };
-  }
+  };
 
   window.addToCart = () => {
     const select = document.getElementById('prodSelect');
@@ -2922,8 +2921,8 @@ ${itemsText}
     const discountCheckbox = document.getElementById('applyDiscount');
     if (discountCheckbox) discountCheckbox.checked = false; 
     
-    loadOrders(); 
-    loadProducts();
+    window.loadOrders(); 
+    window.loadProducts();
     
   } catch (err) {
     console.error(err);
@@ -2942,8 +2941,8 @@ ${itemsText}
     try {
       const snap = await getDocs(query(collection(db,"orders"), orderBy("timestamp","desc")));
       orders = snap.docs.map(d => ({id: d.id, ...d.data()}));
-      renderOrders(); 
-      updateDashboard();
+      window.renderOrders(); 
+      window.updateDashboard();
     } catch (error) {
       console.error('❌ خطأ في تحميل الطلبات:', error);
     }
@@ -3075,7 +3074,7 @@ ${itemsText}
       
       console.log("تم تحديث الطلب بنجاح");
       
-      await loadOrders();
+      await window.loadOrders();
       
       // إرسال رسالة تحديث حالة الطلب إذا تغيرت الحالة
       if (newStatus !== oldStatus && (newStatus === 'تحت التجهيز' || newStatus === 'تم التوصيل')) {
@@ -3122,7 +3121,7 @@ ${itemsText}
     window.onafterprint = () => location.reload();
   };
 
-  window.delOrder = id => confirm("حذف نهائي؟") && deleteDoc(doc(db,'orders',id)).then(loadOrders);
+  window.delOrder = id => confirm("حذف نهائي؟") && deleteDoc(doc(db,'orders',id)).then(window.loadOrders);
   
   window.deleteAllOrders = () => {
     if(confirm("هل أنت متأكد من حذف كل الطلبات؟ هذا الإجراء لا يمكن التراجع عنه!")) {
@@ -3130,7 +3129,7 @@ ${itemsText}
         const b = writeBatch(db); 
         s.docs.forEach(d => b.delete(d.ref)); 
         return b.commit(); 
-      }).then(loadOrders);
+      }).then(window.loadOrders);
     }
   };
   
@@ -3140,11 +3139,11 @@ ${itemsText}
         const b = writeBatch(db); 
         s.docs.forEach(d => b.delete(d.ref)); 
         return b.commit(); 
-      }).then(loadProducts);
+      }).then(window.loadProducts);
     }
   };
 
-  function updateDashboard() {
+  window.updateDashboard = function() {
     const today = new Date().toDateString();
     const todayCount = orders.filter(o => o.timestamp && new Date(o.timestamp.toDate()).toDateString() === today).length;
     const completed = orders.filter(o => o.orderStatus === 'تم التوصيل').length;
@@ -3256,7 +3255,7 @@ ${itemsText}
     window.showPage('products');
   };
 
-  window.delP = id => confirm("حذف نهائي؟") && deleteDoc(doc(db,"products",id)).then(loadProducts);
+  window.delP = id => confirm("حذف نهائي؟") && deleteDoc(doc(db,"products",id)).then(window.loadProducts);
 
   document.getElementById('productForm').onsubmit = async e => {
     e.preventDefault();
@@ -3330,7 +3329,7 @@ ${itemsText}
       document.getElementById('imagePreview').innerHTML = '';
       document.getElementById('editProductId').value = '';
       if (submitBtn) submitBtn.innerText = "إضافة منتج";
-      loadProducts();
+      window.loadProducts();
     } catch (err) { 
       alert("خطأ: " + err.message); 
     }
@@ -3429,8 +3428,8 @@ ${itemsText}
     // مستمعي أحداث البحث
     const searchOrders = document.getElementById('searchOrders');
     const searchProducts = document.getElementById('searchProducts');
-    if (searchOrders) searchOrders.addEventListener('input', renderOrders);
-    if (searchProducts) searchProducts.addEventListener('input', renderProducts);
+    if (searchOrders) searchOrders.addEventListener('input', window.renderOrders);
+    if (searchProducts) searchProducts.addEventListener('input', window.renderProducts);
     
     // مستمعي أحداث الباركود للطلبات
     const flashToggle = document.getElementById('flashToggle');
