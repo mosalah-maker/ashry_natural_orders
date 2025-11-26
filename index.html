@@ -772,6 +772,51 @@
       border: 1px solid #f5c6cb;
       color: #721c24;
     }
+    
+    /* تحسينات السلة - أزرار الزيادة والنقصان */
+    .quantity-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    
+    .quantity-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--p);
+      color: white;
+      border: none;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+    }
+    
+    .quantity-btn:hover {
+      background: var(--s);
+      transform: scale(1.1);
+    }
+    
+    .quantity-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .quantity-display {
+      font-size: 18px;
+      font-weight: bold;
+      min-width: 40px;
+      text-align: center;
+      padding: 8px;
+      background: #f0f0f0;
+      border-radius: 8px;
+    }
   </style>
 </head>
 <body>
@@ -1186,7 +1231,7 @@ ${orderItems}
     return statusMessage;
   }
 
-  // دالة إرسال رسالة حالة الطلب عبر واتساب
+  // دالة إرسال رسالة حالة الطلب عبر واتساب - محسنة
   async function sendOrderStatusUpdate(orderId, newStatus, oldStatus) {
     try {
       const order = orders.find(o => o.id === orderId);
@@ -1270,7 +1315,15 @@ ${orderItems}
               : '<div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;background:#eee;border-radius:8px;"></div>'}
             <div style="padding:15px 80px 15px 10px;">
               <div style="font-weight:bold;font-size:18px;margin-bottom:8px;">${item.name}</div>
-              <div style="color:#555;margin-bottom:8px;">الكمية: <strong>${item.qty}</strong></div>
+              <div class="quantity-controls">
+                <button class="quantity-btn" onclick="window.decreaseQuantity(${index})" ${item.qty <= 1 ? 'disabled' : ''}>
+                  <i class="fas fa-minus"></i>
+                </button>
+                <div class="quantity-display">${item.qty}</div>
+                <button class="quantity-btn" onclick="window.increaseQuantity(${index})">
+                  <i class="fas fa-plus"></i>
+                </button>
+              </div>
               <div style="color:#666;margin-bottom:4px;font-size:14px;">سعر الوحدة: ${price.toFixed(0)} ج</div>
               ${useDiscount && p.discount > 0 ? `<div style="color:#e67e22;font-weight:bold;font-size:14px;">تم تطبيق خصم ${p.discount}%</div>` : ''}
               <div style="font-size:20px;color:#1e3c72;margin-top:10px;font-weight:bold;">
@@ -1324,7 +1377,15 @@ ${orderItems}
               : '<div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:70px;height:70px;background:#eee;border-radius:8px;"></div>'}
             <div style="padding:15px 80px 15px 10px;">
               <div style="font-weight:bold;font-size:18px;margin-bottom:8px;">${item.name}</div>
-              <div style="color:#555;margin-bottom:8px;">الكمية: <strong>${item.qty}</strong></div>
+              <div class="quantity-controls">
+                <button class="quantity-btn" onclick="window.decreaseEditQuantity(${index})" ${item.qty <= 1 ? 'disabled' : ''}>
+                  <i class="fas fa-minus"></i>
+                </button>
+                <div class="quantity-display">${item.qty}</div>
+                <button class="quantity-btn" onclick="window.increaseEditQuantity(${index})">
+                  <i class="fas fa-plus"></i>
+                </button>
+              </div>
               <div style="color:#666;margin-bottom:4px;font-size:14px;">سعر الوحدة: ${price.toFixed(0)} ج</div>
               ${useDiscount && p.discount > 0 ? `<div style="color:#e67e22;font-weight:bold;font-size:14px;">تم تطبيق خصم ${p.discount}%</div>` : ''}
               <div style="font-size:20px;color:#1e3c72;margin-top:10px;font-weight:bold;">
@@ -1340,6 +1401,36 @@ ${orderItems}
       <div style="background:linear-gradient(135deg,#1e3c72,#2a5298);color:white;padding:25px;border-radius:16px;text-align:center;font-size:28px;font-weight:900;box-shadow:0 8px 25px rgba(30,60,114,0.3);margin:20px 0;">
         الإجمالي: ${total.toFixed(0)} جنيه مصري
       </div>`;
+  };
+
+  // دوال التحكم في الكمية للسلة الرئيسية
+  window.increaseQuantity = function(index) {
+    if (index >= 0 && index < cart.length) {
+      cart[index].qty += 1;
+      renderCart();
+    }
+  };
+
+  window.decreaseQuantity = function(index) {
+    if (index >= 0 && index < cart.length && cart[index].qty > 1) {
+      cart[index].qty -= 1;
+      renderCart();
+    }
+  };
+
+  // دوال التحكم في الكمية لسلة التعديل
+  window.increaseEditQuantity = function(index) {
+    if (index >= 0 && index < editCart.length) {
+      editCart[index].qty += 1;
+      renderEditCart();
+    }
+  };
+
+  window.decreaseEditQuantity = function(index) {
+    if (index >= 0 && index < editCart.length && editCart[index].qty > 1) {
+      editCart[index].qty -= 1;
+      renderEditCart();
+    }
   };
 
   // دوال الباركود للطلبات - محسنة للقراءة المستمرة بدون توقف
@@ -1484,7 +1575,7 @@ ${orderItems}
         }
       });
       
-      // الجزء المحسن: القراءة المستمرة بدون توقف
+      // الجزء المحسن: القراءة المستمرة بدون توقف مع فترة تجميد 1 ثانية
       Quagga.onDetected(function(result) {
         if (!isScanning || scanCooldown) return;
         
@@ -1503,11 +1594,11 @@ ${orderItems}
           return;
         }
         
-        // تفعيل فترة التبريد لمنع المسح المتكرر السريع
+        // تفعيل فترة التبريد لمنع المسح المتكرر السريع - 1 ثانية
         scanCooldown = true;
         setTimeout(() => {
           scanCooldown = false;
-        }, 500); // فترة تبريد 500 مللي ثانية
+        }, 1000); // فترة تجميد 1000 مللي ثانية (1 ثانية)
         
         lastScannedCode = code;
         
@@ -1801,6 +1892,8 @@ ${orderItems}
       });
       
       Quagga.onDetected(function(result) {
+        if (scanCooldown) return;
+        
         const code = result.codeResult.code;
         console.log('تم التعرف على الباركود للمنتج:', code, 'بدقة:', result.codeResult.format);
         
@@ -1808,6 +1901,12 @@ ${orderItems}
           console.log('باركود غير صالح:', code);
           return;
         }
+        
+        // تفعيل فترة التبريد لمنع المسح المتكرر السريع - 1 ثانية
+        scanCooldown = true;
+        setTimeout(() => {
+          scanCooldown = false;
+        }, 1000); // فترة تجميد 1000 مللي ثانية (1 ثانية)
         
         // تغيير لون المستطيل إلى الأخضر للإشارة إلى النجاح
         if (scanArea) {
