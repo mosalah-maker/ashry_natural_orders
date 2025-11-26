@@ -980,7 +980,7 @@
     <h2>إدارة المنتجات</h2>
     
     <!-- قسم تشخيص المشاكل -->
-    <div class="debug-info" id="debugInfo">
+    <div class="debug-info" id="debugInfo" style="display:none">
       <h4><i class="fas fa-bug"></i> معلومات التشخيص</h4>
       <div id="debugContent">جاري التحقق من اتصال قاعدة البيانات...</div>
     </div>
@@ -989,8 +989,6 @@
       <button class="success export-btn" id="exportProductsBtn">تصدير إلى إكسيل</button>
       <button class="danger export-btn" id="deleteAllProductsBtn">حذف كل المنتجات</button>
       <button class="orange export-btn" id="importExcelBtn">استيراد من إكسل</button>
-      <button class="success export-btn" id="testConnectionBtn">اختبار الاتصال</button>
-      <button class="orange export-btn" id="addSampleProductsBtn">إضافة منتجات تجريبية</button>
       <input type="file" id="importExcel" accept=".xlsx,.xls" style="display:none;">
       <div style="margin-top:12px; color:#555; font-size:14px;">
         الأعمدة المطلوبة: <strong>اسم المنتج | الكمية | سعر البيع | الخصم % | رابط الصورة (اختياري) | الباركود (اختياري)</strong>
@@ -1119,6 +1117,7 @@
   let isScanning = false;
   let quaggaInitialized = false;
   let quaggaProductInitialized = false;
+  let connectionTestInterval = null;
 
   // تعريف الدوال في النطاق العالمي
   window.renderCart = function() {
@@ -1932,6 +1931,10 @@
     if(confirm("تسجيل الخروج؟")) {
       window.stopBarcodeScanner();
       window.stopProductBarcodeScanner();
+      if (connectionTestInterval) {
+        clearInterval(connectionTestInterval);
+        connectionTestInterval = null;
+      }
       signOut(auth);
     }
   };
@@ -1959,98 +1962,24 @@
       });
   };
 
-  // دالة اختبار اتصال Firebase
-  window.testFirebaseConnection = async function() {
-    const debugContent = document.getElementById('debugContent');
-    if (!debugContent) return false;
-    
-    debugContent.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري اختبار اتصال Firebase...';
-    
+  // دالة اختبار اتصال Firebase تلقائي
+  async function autoTestFirebaseConnection() {
     try {
-      // اختبار جلب البيانات من مجموعة products
       const productsRef = collection(db, "products");
       const snapshot = await getDocs(productsRef);
-      
       const productCount = snapshot.size;
-      debugContent.innerHTML = `
-        <div class="debug-success">
-          <p><i class="fas fa-check-circle"></i> <strong>الاتصال بنجاح!</strong></p>
-          <p>عدد المنتجات في قاعدة البيانات: <strong>${productCount}</strong></p>
-          <p>Project ID: <strong>${firebaseConfig.projectId}</strong></p>
-        </div>
-      `;
-      
-      console.log('✅ اتصال Firebase ناجح، عدد المنتجات:', productCount);
+      console.log('✅ اتصال Firebase تلقائي ناجح، عدد المنتجات:', productCount);
       return true;
     } catch (error) {
-      debugContent.innerHTML = `
-        <div class="debug-error">
-          <p><i class="fas fa-exclamation-triangle"></i> <strong>خطأ في الاتصال!</strong></p>
-          <p>الخطأ: ${error.message}</p>
-          <p>رمز الخطأ: ${error.code}</p>
-          <p>تأكد من: 
-            <ul>
-              <li>صحة إعدادات Firebase</li>
-              <li>وجود مجموعة products في قاعدة البيانات</li>
-              <li>صلاحيات الأمان في Firebase</li>
-            </ul>
-          </p>
-        </div>
-      `;
-      console.error('❌ خطأ في اتصال Firebase:', error);
+      console.error('❌ فشل الاتصال التلقائي بـ Firebase:', error);
       return false;
     }
-  };
-
-  // دالة إضافة منتجات تجريبية
-  window.addSampleProducts = async function() {
-    const sampleProducts = [
-      {
-        name: "زيت زيتون بكر ممتاز",
-        stock: 50,
-        sellPrice: 120,
-        discount: 10,
-        barcode: "1234567890123",
-        imageUrl: ""
-      },
-      {
-        name: "عسل طبيعي 100%",
-        stock: 30,
-        sellPrice: 150,
-        discount: 5,
-        barcode: "2345678901234",
-        imageUrl: ""
-      },
-      {
-        name: "تمور مجدول",
-        stock: 100,
-        sellPrice: 80,
-        discount: 0,
-        barcode: "3456789012345",
-        imageUrl: ""
-      }
-    ];
-
-    try {
-      for (const product of sampleProducts) {
-        await addDoc(collection(db, "products"), product);
-      }
-      alert("✅ تم إضافة المنتجات التجريبية بنجاح!");
-      window.loadProducts();
-    } catch (error) {
-      alert("❌ فشل إضافة المنتجات التجريبية: " + error.message);
-    }
-  };
+  }
 
   // دالة تحميل المنتجات مع تحسينات التشخيص
   window.loadProducts = async function() {
-    const debugContent = document.getElementById('debugContent');
-    
     try {
       console.log('🔄 جاري تحميل المنتجات من Firebase...');
-      if (debugContent) {
-        debugContent.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تحميل المنتجات...';
-      }
       
       const productsRef = collection(db, "products");
       const snap = await getDocs(productsRef);
@@ -2074,35 +2003,12 @@
       });
       
       console.log('✅ عدد المنتجات المحملة:', products.length);
-      if (debugContent) {
-        debugContent.innerHTML = `
-          <div class="debug-success">
-            <p><i class="fas fa-check-circle"></i> <strong>تم تحميل المنتجات بنجاح!</strong></p>
-            <p>عدد المنتجات: <strong>${products.length}</strong></p>
-          </div>
-        `;
-      }
       
       // عرض المنتجات بعد تحميلها
       window.renderProducts();
       
     } catch (error) {
       console.error('❌ خطأ في تحميل المنتجات:', error);
-      if (debugContent) {
-        debugContent.innerHTML = `
-          <div class="debug-error">
-            <p><i class="fas fa-exclamation-triangle"></i> <strong>فشل تحميل المنتجات!</strong></p>
-            <p>الخطأ: ${error.message}</p>
-            <p>تأكد من:
-              <ul>
-                <li>وجود مجموعة products في Firebase</li>
-                <li>صلاحيات القراءة في قواعد الأمان</li>
-                <li>اتصال الإنترنت</li>
-              </ul>
-            </p>
-          </div>
-        `;
-      }
     }
   };
 
@@ -2137,10 +2043,6 @@
             <td colspan="8" style="text-align:center;padding:50px;color:#999">
               <i class="fas fa-box-open" style="font-size:48px;margin-bottom:20px;display:block;color:#ccc;"></i>
               لا توجد منتجات
-              <br>
-              <button onclick="window.addSampleProducts()" class="success small" style="margin-top:15px;">
-                <i class="fas fa-plus"></i> إضافة منتجات تجريبية
-              </button>
             </td>
           </tr>
         `;
@@ -2726,10 +2628,6 @@ ${itemsText.replace(/%0A/g, '\n')}
     });
     document.getElementById('importExcel').addEventListener('change', window.importProductsFromExcel);
     
-    // مستمعي أحداث التشخيص
-    document.getElementById('testConnectionBtn').addEventListener('click', window.testFirebaseConnection);
-    document.getElementById('addSampleProductsBtn').addEventListener('click', window.addSampleProducts);
-    
     // مستمعي أحداث البحث
     const searchOrders = document.getElementById('searchOrders');
     const searchProducts = document.getElementById('searchProducts');
@@ -2780,18 +2678,21 @@ ${itemsText.replace(/%0A/g, '\n')}
         }
       }, 1000);
       
-      // اختبر الاتصال عند تسجيل الدخول
-      setTimeout(() => {
-        window.testFirebaseConnection().then(success => {
-          if (success) {
-            window.loadProducts();
-            window.loadOrders();
-          }
-        });
-      }, 1000);
+      // اختبار الاتصال التلقائي كل 5 دقائق
+      connectionTestInterval = setInterval(() => {
+        autoTestFirebaseConnection();
+      }, 5 * 60 * 1000); // 5 دقائق
+      
+      // تحميل البيانات مباشرة
+      window.loadProducts();
+      window.loadOrders();
       
     } else {
       hideEverythingExceptLogin();
+      if (connectionTestInterval) {
+        clearInterval(connectionTestInterval);
+        connectionTestInterval = null;
+      }
     }
   });
   
