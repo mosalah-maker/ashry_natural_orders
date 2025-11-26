@@ -864,7 +864,7 @@
     </div>
     <hr style="margin:30px 0">
     
-    <!-- قسم الباركود - محسن للدقة -->
+    <!-- قسم الباركود - محسن للقراءة المستمرة -->
     <div class="barcode-section">
       <div class="barcode-toggle" id="barcodeToggle">
         <i class="fas fa-barcode"></i>
@@ -1108,7 +1108,7 @@
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
   import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, increment, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-  // إعدادات Firebase - تم التعديل بناءً على إعداداتك
+  // إعدادات Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyAuRBWr54OUPpH63rYX2GuX5UGMippYSkQ",
     authDomain: "ashrynutral.firebaseapp.com",
@@ -1135,6 +1135,103 @@
   let connectionTestInterval = null;
   let flashEnabled = false;
   let productFlashEnabled = false;
+  let lastScannedCode = ''; // لتجنب المسح المتكرر لنفس الباركود
+  let scanCooldown = false; // لمنع المسح المتكرر السريع
+
+  // دالة إنشاء رسالة حالة الطلب
+  function createOrderStatusMessage(order, newStatus, oldStatus) {
+    const customerName = order.customerName;
+    const orderItems = order.items.map(i => `• ${i.name} × ${i.qty}`).join('\n');
+    const totalPrice = order.totalPrice;
+    
+    let statusMessage = '';
+    
+    if (newStatus === 'تحت التجهيز' && oldStatus === 'جديد') {
+      statusMessage = `*تحديث حالة الطلب - Ashry Natural*
+
+مرحباً ${customerName} 👋
+
+نود إعلامك أن طلبك قد تم نقله إلى مرحلة *"تحت التجهيز"* ✅
+
+*تفاصيل الطلب:*
+${orderItems}
+
+*الإجمالي: ${totalPrice} جنيه مصري*
+
+نقوم الآن بتجهيز طلبك بعناية وسيتم شحنه إليك في أقرب وقت ممكن.
+
+نشكرك على ثقتك بنا 🌟
+*Ashry Natural - صحتك تهمنا*`;
+    }
+    else if (newStatus === 'تم التوصيل' && oldStatus !== 'تم التوصيل') {
+      statusMessage = `*تهانينا! تم توصيل طلبك - Ashry Natural*
+
+أهلاً ${customerName} 🎉
+
+يسعدنا إعلامك أنه تم توصيل طلبك بنجاح ✅
+
+*تفاصيل الطلب:*
+${orderItems}
+
+*الإجمالي: ${totalPrice} جنيه مصري*
+
+نشكرك على ثقتك بنا ونتشرف بخدمتك في أي وقت.
+
+إذا كان لديك أي استفسار أو واجهت أي مشكلة، لا تتردد في التواصل مع فريق الدعم.
+
+مع فائق التحية 🌹
+*Ashry Natural - صحتك تهمنا*`;
+    }
+    
+    return statusMessage;
+  }
+
+  // دالة إرسال رسالة حالة الطلب عبر واتساب
+  async function sendOrderStatusUpdate(orderId, newStatus, oldStatus) {
+    try {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) {
+        console.error('الطلب غير موجود:', orderId);
+        return false;
+      }
+      
+      const message = createOrderStatusMessage(order, newStatus, oldStatus);
+      if (!message) {
+        console.log('لا توجد رسالة مخصصة لهذا التحديث');
+        return true;
+      }
+      
+      const phone = order.customerPhone.replace('+2', '');
+      const encodedMessage = encodeURIComponent(message);
+      const whatsappUrl = `https://wa.me/2${phone}?text=${encodedMessage}`;
+      
+      // محاولة فتح الواتساب
+      const waWindow = window.open(whatsappUrl, '_blank');
+      
+      // إذا فشل فتح النافذة، عرض رسالة بديلة
+      if (!waWindow || waWindow.closed || typeof waWindow.closed === 'undefined') {
+        setTimeout(() => {
+          if (confirm(`تم تحديث حالة الطلب إلى "${newStatus}"\n\nاضغط موافق لفتح واتساب وإرسال إشعار للعميل، أو cancel للنسخ يدوياً`)) {
+            window.open(whatsappUrl, '_blank');
+          } else {
+            // نسخ الرسالة للحافظة
+            navigator.clipboard.writeText(message).then(() => {
+              alert("تم نسخ الرسالة للحافظة!\nيمكنك لصقها في واتساب يدوياً\n\n" + message);
+            }).catch(() => {
+              alert("الرسالة جاهزة للإرسال:\n\n" + message);
+            });
+          }
+        }, 500);
+      } else {
+        console.log('تم فتح واتساب لإرسال تحديث حالة الطلب');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('خطأ في إرسال تحديث حالة الطلب:', error);
+      return false;
+    }
+  }
 
   // تعريف الدوال في النطاق العالمي
   window.renderCart = function() {
@@ -1245,7 +1342,7 @@
       </div>`;
   };
 
-  // دوال الباركود للطلبات - محسنة للقراءة المستمرة والتشغيل التلقائي
+  // دوال الباركود للطلبات - محسنة للقراءة المستمرة بدون توقف
   window.startBarcodeScanner = async function() {
     const video = document.getElementById('barcode-scanner');
     const overlay = document.getElementById('barcodeOverlay');
@@ -1387,8 +1484,9 @@
         }
       });
       
+      // الجزء المحسن: القراءة المستمرة بدون توقف
       Quagga.onDetected(function(result) {
-        if (!isScanning) return;
+        if (!isScanning || scanCooldown) return;
         
         const code = result.codeResult.code;
         console.log('تم التعرف على الباركود:', code, 'بدقة:', result.codeResult.format);
@@ -1399,17 +1497,23 @@
           return;
         }
         
+        // تجنب المسح المتكرر لنفس الباركود
+        if (code === lastScannedCode) {
+          console.log('تم مسح هذا الباركود مسبقاً، يتم تجاهله');
+          return;
+        }
+        
+        // تفعيل فترة التبريد لمنع المسح المتكرر السريع
+        scanCooldown = true;
+        setTimeout(() => {
+          scanCooldown = false;
+        }, 500); // فترة تبريد 500 مللي ثانية
+        
+        lastScannedCode = code;
+        
         // تغيير لون المستطيل إلى الأخضر للإشارة إلى النجاح
         scanArea.classList.remove('scanning');
         scanArea.classList.add('success');
-        
-        // إيقاف المسح مؤقتاً بعد التعرف على الباركود
-        isScanning = false;
-        try {
-          Quagga.stop();
-        } catch (e) {
-          console.log('خطأ في إيقاف Quagga:', e);
-        }
         
         // البحث عن المنتج باستخدام الباركود
         const product = findProductByBarcode(code);
@@ -1421,34 +1525,24 @@
           setTimeout(() => {
             addProductToCartByBarcode(product.id);
             
-            // إعادة تعيين المستطيل وإعادة تشغيل الماسح بعد إضافة المنتج
+            // إعادة تعيين المستطيل للاستعداد للمسح التالي
             setTimeout(() => {
               scanArea.classList.remove('success');
               scanArea.classList.add('scanning');
-              isScanning = true;
-              try {
-                Quagga.start();
-              } catch (e) {
-                console.log('خطأ في إعادة تشغيل Quagga:', e);
-              }
-            }, 500); // تقليل وقت الانتظار إلى نصف ثانية فقط
+              lastScannedCode = ''; // إعادة تعيين للسماح بمسح نفس الباركود مرة أخرى بعد فترة
+            }, 800);
           }, 300);
         } else {
           showBarcodeResult(`لم يتم العثور على منتج بالباركود: ${code}`, false);
           scanArea.classList.remove('success');
           scanArea.classList.add('error');
           
-          // إعادة تعيين المستطيل وإعادة تشغيل الماسح بعد الخطأ
+          // إعادة تعيين المستطيل للاستعداد للمسح التالي
           setTimeout(() => {
             scanArea.classList.remove('error');
             scanArea.classList.add('scanning');
-            isScanning = true;
-            try {
-              Quagga.start();
-            } catch (e) {
-              console.log('خطأ في إعادة تشغيل Quagga:', e);
-            }
-          }, 1000); // وقت انتظار أطول قليلاً في حالة الخطأ
+            lastScannedCode = ''; // إعادة تعيين للسماح بمسح نفس الباركود مرة أخرى بعد فترة
+          }, 1500);
         }
       });
       
@@ -1594,6 +1688,8 @@
     
     isScanning = false;
     flashEnabled = false;
+    scanCooldown = false;
+    lastScannedCode = '';
     
     if (scanArea) {
       scanArea.classList.remove('scanning', 'success', 'error');
@@ -1719,31 +1815,19 @@
           scanArea.classList.add('success');
         }
         
-        // إيقاف المسح مؤقتاً بعد التعرف على الباركود
-        try {
-          Quagga.stop();
-        } catch (e) {
-          console.log('خطأ في إيقاف Quagga:', e);
-        }
-        
         scannedBarcodeValue = code;
         document.getElementById('scannedBarcode').value = code;
         document.getElementById('applyBarcode').disabled = false;
         
         showProductBarcodeResult(`تم مسح الباركود: ${code}`, true);
         
-        // إعادة تعيين المستطيل وإعادة تشغيل الماسح بعد النجاح
+        // إعادة تعيين المستطيل للاستعداد للمسح التالي
         setTimeout(() => {
           if (scanArea) {
             scanArea.classList.remove('success');
             scanArea.classList.add('scanning');
-            try {
-              Quagga.start();
-            } catch (e) {
-              console.log('خطأ في إعادة تشغيل Quagga:', e);
-            }
           }
-        }, 500); // تقليل وقت الانتظار إلى نصف ثانية فقط
+        }, 500);
       });
       
     } catch (error) {
@@ -2475,8 +2559,12 @@ ${itemsText}
     
     const customerName = document.getElementById('editCname').value.trim();
     const address = document.getElementById('editCaddr').value.trim();
-    const orderStatus = document.getElementById('editStatus').value;
+    const newStatus = document.getElementById('editStatus').value;
     const useDiscount = document.getElementById('editApplyDiscount').checked;
+    
+    // الحصول على الحالة القديمة للطلب
+    const oldOrder = orders.find(o => o.id === orderId);
+    const oldStatus = oldOrder ? oldOrder.orderStatus : 'جديد';
     
     let totalAfter = 0;
     const itemsWithPrice = editCart.map(i => {
@@ -2516,7 +2604,7 @@ ${itemsText}
         customerAddress: address,
         items: itemsWithPrice,
         totalPrice: totalAfter,
-        orderStatus: orderStatus,
+        orderStatus: newStatus,
         appliedDiscount: useDiscount,
         updatedAt: serverTimestamp()
       });
@@ -2524,6 +2612,11 @@ ${itemsText}
       console.log("تم تحديث الطلب بنجاح");
       
       await loadOrders();
+      
+      // إرسال رسالة تحديث حالة الطلب إذا تغيرت الحالة
+      if (newStatus !== oldStatus && (newStatus === 'تحت التجهيز' || newStatus === 'تم التوصيل')) {
+        await sendOrderStatusUpdate(orderId, newStatus, oldStatus);
+      }
       
       alert("✅ تم تحديث الطلب بنجاح!");
       
