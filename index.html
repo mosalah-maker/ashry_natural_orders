@@ -643,7 +643,7 @@
     /* تحسينات عامة للجوال */
     @media (max-width: 992px) {
       .sidebar {
-        display: none;
+        display: none !important;
       }
       
       .main {
@@ -1067,7 +1067,7 @@
 </head>
 <body>
 
-<div class="sidebar">
+<div class="sidebar desktop-only">
   <h2>Ashry Natural</h2>
   <a onclick="window.showPage('dashboard')" class="active">الرئيسية</a>
   <a onclick="window.showPage('add-order')">طلب جديد</a>
@@ -1079,7 +1079,7 @@
 <div class="main">
 
   <!-- شريط التنقل السفلي للجوال -->
-  <div class="mobile-nav">
+  <div class="mobile-nav mobile-only">
     <div class="mobile-nav-items">
       <a class="mobile-nav-item active" onclick="window.showPage('dashboard')">
         <i class="fas fa-home"></i>
@@ -2522,7 +2522,7 @@ ${orderItems}
   };
 
   function hideEverythingExceptLogin() {
-    document.querySelectorAll('.card, #invoice, .sidebar, #menuBtn').forEach(el => {
+    document.querySelectorAll('.card, #invoice, .sidebar, .mobile-nav').forEach(el => {
       if (el.id !== 'login') el.style.display = 'none';
     });
     document.getElementById('login').style.display = 'block';
@@ -2542,7 +2542,7 @@ ${orderItems}
         // إخفاء صفحة تسجيل الدخول وإظهار المحتوى الرئيسي
         document.getElementById('login').style.display = 'none';
         document.querySelector('.sidebar').style.display = 'block';
-        document.getElementById('menuBtn').style.display = 'none';
+        document.querySelector('.mobile-nav').style.display = 'block';
         window.showPage('dashboard');
         
         // تحميل البيانات مباشرة
@@ -3114,7 +3114,7 @@ ${itemsText}
         <td style="padding:12px;border:1px solid #000;text-align:center">${(Number(i.price || 0) * (i.qty || 0)).toFixed(0)}</td>
       </tr>
     `).join('');
-    document.querySelectorAll('.card, .sidebar, #menuBtn').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.card, .sidebar, .mobile-nav').forEach(el => el.style.display = 'none');
     document.body.style.background = 'white';
     document.getElementById('invoice').style.display = 'block';
     setTimeout(() => { window.print(); }, 500);
@@ -3368,15 +3368,13 @@ ${itemsText}
   // دالة للتعامل مع تغيير حجم النافذة - تم إصلاح الخطأ هنا
   function handleResize() {
     const sidebar = document.querySelector('.sidebar');
-    const menuBtn = document.getElementById('menuBtn');
     const mobileNav = document.querySelector('.mobile-nav');
     
     if (!sidebar || !mobileNav) return; // التحقق من وجود العناصر
     
     if (window.innerWidth > 992) {
-      // على الديسكتوب، تأكد من إظهار الشريط الجانبي
+      // على الديسكتوب، تأكد من إظهار الشريط الجانبي وإخفاء شريط الجوال
       sidebar.style.display = 'block';
-      if (menuBtn) menuBtn.style.display = 'none';
       mobileNav.style.display = 'none';
     } else {
       // على الجوال، إخفاء الشريط الجانبي وإظهار شريط التنقل السفلي
@@ -3497,8 +3495,7 @@ ${itemsText}
   onAuthStateChanged(auth, user => {
     if (user) {
       document.getElementById('login').style.display = 'none';
-      document.querySelector('.sidebar').style.display = 'block';
-      document.getElementById('menuBtn').style.display = 'none';
+      handleResize(); // تطبيق التخطيط الصحيح بناءً على حجم الشاشة
       window.showPage('dashboard');
       setInterval(() => {
         const currentTime = document.getElementById('currentTime');
