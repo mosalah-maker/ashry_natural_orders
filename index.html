@@ -720,6 +720,15 @@
       color: var(--p);
     }
     
+    .copyright-footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #ddd;
+      font-size: 14px;
+      color: #666;
+    }
+    
     @media print {
       @page { margin: 1cm; }
       body * { visibility: hidden !important; }
@@ -736,6 +745,10 @@
       .invoice-table th {
         background: #1e3c72 !important;
         color: white !important;
+      }
+      .copyright-footer {
+        color: #000 !important;
+        font-size: 12px !important;
       }
     }
     
@@ -799,6 +812,11 @@
     <div style="text-align:center;margin-top:50px;font-size:22px;color:#27ae60">
       شكراً لثقتكم بنا<br><strong>Ashry Natural - صحتك تهمنا</strong>
     </div>
+    <!-- إضافة حقوق الملكية في الفاتورة -->
+    <div class="copyright-footer">
+      تم تطوير النظام بواسطة المهندس محمد صلاح الزهيري<br>
+      للتواصل: 01029149379
+    </div>
   </div>
 
   <div id="login" class="card" style="max-width:420px;margin:100px auto;text-align:center">
@@ -818,6 +836,10 @@
       <div class="stat" style="background:linear-gradient(135deg,#8e44ad,#9b59b6);color:#fff;padding:30px;border-radius:16px;text-align:center"><h3>طلبات اليوم</h3><h2 id="todayOrders">0</h2></div>
       <div class="stat" style="background:linear-gradient(135deg,var(--g),#2ecc71);color:#fff;padding:30px;border-radius:16px;text-align:center"><h3>تم التوصيل</h3><h2 id="completedOrders">0</h2></div>
       <div class="stat" style="background:linear-gradient(135deg,var(--o),#e67e22);color:#fff;padding:30px;border-radius:16px;text-align:center"><h3>إجمالي المبيعات</h3><h2 id="totalSales">0 جنيه</h2></div>
+    </div>
+    <!-- إضافة حقوق الملكية في لوحة التحكم -->
+    <div class="copyright-footer">
+      تم تطوير النظام بواسطة المهندس محمد صلاح الزهيري - للتواصل: 01029149379
     </div>
   </div>
 
@@ -1073,6 +1095,10 @@
       </tr></thead>
       <tbody id="productsList"></tbody>
     </table>
+    <!-- إضافة حقوق الملكية في صفحة المنتجات -->
+    <div class="copyright-footer">
+      تم تطوير النظام بواسطة المهندس محمد صلاح الزهيري - للتواصل: 01029149379
+    </div>
   </div>
 
 </div>
@@ -1405,8 +1431,8 @@
               } catch (e) {
                 console.log('خطأ في إعادة تشغيل Quagga:', e);
               }
-            }, 1000); // تقليل وقت الانتظار إلى ثانية واحدة فقط
-          }, 500);
+            }, 500); // تقليل وقت الانتظار إلى نصف ثانية فقط
+          }, 300);
         } else {
           showBarcodeResult(`لم يتم العثور على منتج بالباركود: ${code}`, false);
           scanArea.classList.remove('success');
@@ -1422,7 +1448,7 @@
             } catch (e) {
               console.log('خطأ في إعادة تشغيل Quagga:', e);
             }
-          }, 2000); // وقت انتظار أطول قليلاً في حالة الخطأ
+          }, 1000); // وقت انتظار أطول قليلاً في حالة الخطأ
         }
       });
       
@@ -1498,7 +1524,7 @@
     }
   };
 
-  // دالة تشغيل/إيقاف الفلاش
+  // دالة تشغيل/إيقاف الفلاش - محسنة لإيقاف الفلاش تلقائياً
   window.toggleFlash = async function() {
     if (!currentStream) return;
     
@@ -1528,10 +1554,25 @@
     }
   };
 
+  // دالة إيقاف الماسح الضوئي - محسنة لإيقاف الفلاش تلقائياً
   window.stopBarcodeScanner = function() {
     const video = document.getElementById('barcode-scanner');
     const overlay = document.getElementById('barcodeOverlay');
     const scanArea = document.getElementById('scanArea');
+    
+    // إيقاف الفلاش تلقائياً إذا كان مفعل
+    if (flashEnabled && currentStream) {
+      const videoTrack = currentStream.getVideoTracks()[0];
+      if (videoTrack && videoTrack.getCapabilities && videoTrack.getCapabilities().torch) {
+        try {
+          videoTrack.applyConstraints({
+            advanced: [{ torch: false }]
+          });
+        } catch (e) {
+          console.log('خطأ في إيقاف الفلاش:', e);
+        }
+      }
+    }
     
     if (currentStream) {
       currentStream.getTracks().forEach(track => track.stop());
@@ -1561,6 +1602,13 @@
     if (overlay) {
       overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-camera" style="font-size:48px;margin-bottom:15px;display:block"></i> جاري تشغيل الكاميرا...<div style="margin-top:15px;font-size:14px;color:#ddd">ضع الباركود داخل المستطيل ليتم التعرف عليه تلقائياً</div></div>';
       overlay.style.display = 'flex';
+    }
+    
+    // تحديث زر الفلاش
+    const flashBtn = document.getElementById('flashToggle');
+    if (flashBtn) {
+      flashBtn.innerHTML = '<i class="fas fa-lightbulb"></i> تشغيل الفلاش';
+      flashBtn.style.background = '';
     }
   };
 
@@ -1695,7 +1743,7 @@
               console.log('خطأ في إعادة تشغيل Quagga:', e);
             }
           }
-        }, 1000); // تقليل وقت الانتظار إلى ثانية واحدة فقط
+        }, 500); // تقليل وقت الانتظار إلى نصف ثانية فقط
       });
       
     } catch (error) {
@@ -1706,7 +1754,7 @@
     }
   };
 
-  // دالة تشغيل/إيقاف الفلاش للمنتجات
+  // دالة تشغيل/إيقاف الفلاش للمنتجات - محسنة لإيقاف الفلاش تلقائياً
   window.toggleProductFlash = async function() {
     if (!productStream) return;
     
@@ -1736,11 +1784,26 @@
     }
   };
 
+  // دالة إيقاف الماسح الضوئي للمنتجات - محسنة لإيقاف الفلاش تلقائياً
   window.stopProductBarcodeScanner = function() {
     const video = document.getElementById('product-barcode-scanner');
     const overlay = document.getElementById('productBarcodeOverlay');
     const scanArea = document.getElementById('productScanArea');
     const applyBtn = document.getElementById('applyBarcode');
+    
+    // إيقاف الفلاش تلقائياً إذا كان مفعل
+    if (productFlashEnabled && productStream) {
+      const videoTrack = productStream.getVideoTracks()[0];
+      if (videoTrack && videoTrack.getCapabilities && videoTrack.getCapabilities().torch) {
+        try {
+          videoTrack.applyConstraints({
+            advanced: [{ torch: false }]
+          });
+        } catch (e) {
+          console.log('خطأ في إيقاف الفلاش:', e);
+        }
+      }
+    }
     
     if (productStream) {
       productStream.getTracks().forEach(track => track.stop());
@@ -1769,6 +1832,13 @@
     
     if (applyBtn) applyBtn.disabled = true;
     productFlashEnabled = false;
+    
+    // تحديث زر الفلاش
+    const flashBtn = document.getElementById('productFlashToggle');
+    if (flashBtn) {
+      flashBtn.innerHTML = '<i class="fas fa-lightbulb"></i> تشغيل الفلاش';
+      flashBtn.style.background = '';
+    }
   };
 
   window.focusProductCamera = async function() {
