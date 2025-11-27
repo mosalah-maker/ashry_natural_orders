@@ -7,7 +7,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+  <!-- استبدال Quagga بـ ZXing -->
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
   <style>
     :root {
       --p: #1e3c72;
@@ -1447,13 +1448,15 @@
   let productFacingMode = 'environment';
   let scannedBarcodeValue = '';
   let isScanning = false;
-  let quaggaInitialized = false;
-  let quaggaProductInitialized = false;
   let connectionTestInterval = null;
   let flashEnabled = false;
   let productFlashEnabled = false;
   let lastScannedCode = ''; // لتجنب المسح المتكرر لنفس الباركود
   let scanCooldown = false; // لمنع المسح المتكرر السريع
+  
+  // متغيرات ZXing
+  let codeReader = null;
+  let productCodeReader = null;
 
   // دالة إنشاء رسالة حالة الطلب
   function createOrderStatusMessage(order, newStatus, oldStatus) {
@@ -1721,7 +1724,7 @@ ${orderItems}
     }
   };
 
-  // دوال الباركود للطلبات - محسنة للقراءة المستمرة بدون توقف
+  // دوال الباركود باستخدام ZXing - محسنة للقراءة المستمرة بدون توقف
   window.startBarcodeScanner = async function() {
     const video = document.getElementById('barcode-scanner');
     const overlay = document.getElementById('barcodeOverlay');
@@ -1774,156 +1777,24 @@ ${orderItems}
       // بدء وضع المسح
       scanArea.classList.add('scanning');
       
-      // إعادة تهيئة Quagga إذا كان قد تم تهيئته من قبل
-      if (quaggaInitialized) {
-        try {
-          Quagga.stop();
-        } catch (e) {
-          console.log('Quagga لم يكن يعمل:', e);
-        }
-      }
+      // تهيئة ZXing
+      const { BrowserMultiFormatReader } = ZXing;
+      codeReader = new BrowserMultiFormatReader();
       
-      // تهيئة Quagga للتعرف على الباركود مع إعدادات محسنة
-      Quagga.init({
-        inputStream: {
-          name: "Live",
-          type: "LiveStream",
-          target: video,
-          constraints: {
-            width: 1920,
-            height: 1080,
-            facingMode: currentFacingMode
-          },
-          area: {
-            top: "25%",
-            right: "10%",
-            left: "10%",
-            bottom: "25%"
-          }
-        },
-        locator: {
-          patchSize: "x-large",
-          halfSample: false
-        },
-        numOfWorkers: navigator.hardwareConcurrency || 4,
-        decoder: {
-          readers: [
-            "code_128_reader",
-            "ean_reader",
-            "ean_8_reader",
-            "code_39_reader",
-            "code_39_vin_reader",
-            "codabar_reader",
-            "upc_reader",
-            "upc_e_reader",
-            "i2of5_reader"
-          ],
-          multiple: false
-        },
-        locate: true,
-        frequency: 10
-      }, function(err) {
-        if (err) {
-          console.error('خطأ في تهيئة Quagga:', err);
-          overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-exclamation-triangle" style="font-size:48px;margin-bottom:15px;display:block"></i> خطأ في تشغيل الماسح الضوئي</div>';
-          overlay.style.display = 'flex';
-          scanArea.classList.remove('scanning');
-          return;
-        }
-        
-        Quagga.start();
-        quaggaInitialized = true;
-        console.log('Quagga started successfully with improved settings');
-      });
+      console.log('بدء مسح الباركود باستخدام ZXing...');
       
-      Quagga.onProcessed(function(result) {
-        if (!result) return;
-        
-        // عرض معلومات التتبع للمساعدة في تصحيح الأخطاء
-        const drawingCtx = Quagga.canvas.ctx.overlay;
-        const drawingCanvas = Quagga.canvas.dom.overlay;
-        
-        if (drawingCtx && drawingCanvas) {
-          drawingCtx.clearRect(0, 0, parseInt(drawingCanvas.getAttribute("width")), parseInt(drawingCanvas.getAttribute("height")));
+      // بدء مسح الباركود باستخدام ZXing
+      codeReader.decodeFromVideoDevice(null, video, (result, err) => {
+        if (result) {
+          // تم العثور على باركود
+          const code = result.text;
+          console.log('تم التعرف على الباركود باستخدام ZXing:', code, 'بتنسيق:', result.format);
           
-          if (result.boxes) {
-            drawingCtx.strokeStyle = "#00FF00";
-            result.boxes.filter(function(box) {
-              return box !== result.box;
-            }).forEach(function(box) {
-              Quagga.ImageDebug.drawPath(box, {x: 0, y: 1}, drawingCtx, {color: "green", lineWidth: 2});
-            });
-          }
-          
-          if (result.box) {
-            Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCtx, {color: "#00F", lineWidth: 2});
-          }
-          
-          if (result.codeResult && result.codeResult.code) {
-            Quagga.ImageDebug.drawPath(result.line, {x: 'x', y: 'y'}, drawingCtx, {color: 'red', lineWidth: 3});
-          }
-        }
-      });
-      
-      // الجزء المحسن: القراءة المستمرة بدون توقف مع فترة تجميد 1 ثانية
-      Quagga.onDetected(function(result) {
-        if (!isScanning || scanCooldown) return;
-        
-        const code = result.codeResult.code;
-        console.log('تم التعرف على الباركود:', code, 'بدقة:', result.codeResult.format);
-        
-        // التحقق من جودة النتيجة
-        if (!isValidBarcode(code)) {
-          console.log('باركود غير صالح:', code);
-          return;
+          handleBarcodeResult(code, scanArea);
         }
         
-        // تجنب المسح المتكرر لنفس الباركود
-        if (code === lastScannedCode) {
-          console.log('تم مسح هذا الباركود مسبقاً، يتم تجاهله');
-          return;
-        }
-        
-        // تفعيل فترة التبريد لمنع المسح المتكرر السريع - 1 ثانية
-        scanCooldown = true;
-        setTimeout(() => {
-          scanCooldown = false;
-        }, 1000); // فترة تجميد 1000 مللي ثانية (1 ثانية)
-        
-        lastScannedCode = code;
-        
-        // تغيير لون المستطيل إلى الأخضر للإشارة إلى النجاح
-        scanArea.classList.remove('scanning');
-        scanArea.classList.add('success');
-        
-        // البحث عن المنتج باستخدام الباركود
-        const product = findProductByBarcode(code);
-        
-        if (product) {
-          showBarcodeResult(`تم التعرف على المنتج: ${product.name}`, true);
-          
-          // إضافة المنتج تلقائياً إلى السلة
-          setTimeout(() => {
-            addProductToCartByBarcode(product.id);
-            
-            // إعادة تعيين المستطيل للاستعداد للمسح التالي
-            setTimeout(() => {
-              scanArea.classList.remove('success');
-              scanArea.classList.add('scanning');
-              lastScannedCode = ''; // إعادة تعيين للسماح بمسح نفس الباركود مرة أخرى بعد فترة
-            }, 800);
-          }, 300);
-        } else {
-          showBarcodeResult(`لم يتم العثور على منتج بالباركود: ${code}`, false);
-          scanArea.classList.remove('success');
-          scanArea.classList.add('error');
-          
-          // إعادة تعيين المستطيل للاستعداد للمسح التالي
-          setTimeout(() => {
-            scanArea.classList.remove('error');
-            scanArea.classList.add('scanning');
-            lastScannedCode = ''; // إعادة تعيين للسماح بمسح نفس الباركود مرة أخرى بعد فترة
-          }, 1500);
+        if (err && !(err instanceof ZXing.NotFoundException)) {
+          console.error('خطأ في ZXing:', err);
         }
       });
       
@@ -1966,6 +1837,67 @@ ${orderItems}
     }
     
     return product;
+  }
+
+  // دالة معالجة نتيجة الباركود
+  function handleBarcodeResult(code, scanArea) {
+    if (!isScanning || scanCooldown) return;
+    
+    console.log('تم التعرف على الباركود:', code);
+    
+    // التحقق من جودة النتيجة
+    if (!isValidBarcode(code)) {
+      console.log('باركود غير صالح:', code);
+      return;
+    }
+    
+    // تجنب المسح المتكرر لنفس الباركود
+    if (code === lastScannedCode) {
+      console.log('تم مسح هذا الباركود مسبقاً، يتم تجاهله');
+      return;
+    }
+    
+    // تفعيل فترة التبريد لمنع المسح المتكرر السريع - 1 ثانية
+    scanCooldown = true;
+    setTimeout(() => {
+      scanCooldown = false;
+    }, 1000); // فترة تجميد 1000 مللي ثانية (1 ثانية)
+    
+    lastScannedCode = code;
+    
+    // تغيير لون المستطيل إلى الأخضر للإشارة إلى النجاح
+    scanArea.classList.remove('scanning');
+    scanArea.classList.add('success');
+    
+    // البحث عن المنتج باستخدام الباركود
+    const product = findProductByBarcode(code);
+    
+    if (product) {
+      showBarcodeResult(`تم التعرف على المنتج: ${product.name}`, true);
+      
+      // إضافة المنتج تلقائياً إلى السلة
+      setTimeout(() => {
+        addProductToCartByBarcode(product.id);
+        
+        // إعادة تعيين المستطيل للاستعداد للمسح التالي
+        setTimeout(() => {
+          scanArea.classList.remove('success');
+          scanArea.classList.add('scanning');
+          lastScannedCode = ''; // إعادة تعيين للسماح بمسح نفس الباركود مرة أخرى بعد فترة
+        }, 800);
+      }, 300);
+    } else {
+      showBarcodeResult(`لم يتم العثور على منتج بالباركود: ${code}`, false);
+      scanArea.classList.remove('success');
+      scanArea.classList.add('error');
+      
+      // إعادة تعيين المستطيل للاستعداد للمسح التالي
+      setTimeout(() => {
+        scanArea.classList.remove('error');
+        scanArea.classList.add('scanning');
+        lastScannedCode = ''; // إعادة تعيين للسماح بمسح نفس الباركود مرة أخرى بعد فترة
+      }, 1500);
+    }
   }
 
   // دالة ضبط التركيز
@@ -2037,6 +1969,12 @@ ${orderItems}
     const overlay = document.getElementById('barcodeOverlay');
     const scanArea = document.getElementById('scanArea');
     
+    // إيقاف ZXing
+    if (codeReader) {
+      codeReader.reset();
+      codeReader = null;
+    }
+    
     // إيقاف الفلاش تلقائياً إذا كان مفعل
     if (flashEnabled && currentStream) {
       const videoTrack = currentStream.getVideoTracks()[0];
@@ -2058,15 +1996,6 @@ ${orderItems}
     
     if (video && video.srcObject) {
       video.srcObject = null;
-    }
-    
-    if (quaggaInitialized) {
-      try {
-        Quagga.stop();
-      } catch (e) {
-        console.log('Quagga لم يكن يعمل عند الإيقاف:', e);
-      }
-      quaggaInitialized = false;
     }
     
     isScanning = false;
@@ -2091,7 +2020,7 @@ ${orderItems}
     }
   };
 
-  // دوال الباركود للمنتجات - نفس التحسينات للقراءة المستمرة والتشغيل التلقائي
+  // دوال الباركود للمنتجات باستخدام ZXing - نفس التحسينات للقراءة المستمرة والتشغيل التلقائي
   window.startProductBarcodeScanner = async function() {
     const video = document.getElementById('product-barcode-scanner');
     const overlay = document.getElementById('productBarcodeOverlay');
@@ -2132,98 +2061,25 @@ ${orderItems}
       // بدء وضع المسح
       if (scanArea) scanArea.classList.add('scanning');
       
-      // إعدادات Quagga محسنة للمنتجات
-      Quagga.init({
-        inputStream: {
-          name: "Live",
-          type: "LiveStream",
-          target: video,
-          constraints: {
-            width: 1920,
-            height: 1080,
-            facingMode: productFacingMode
-          },
-          area: {
-            top: "25%",
-            right: "10%",
-            left: "10%",
-            bottom: "25%"
-          }
-        },
-        locator: {
-          patchSize: "x-large",
-          halfSample: false
-        },
-        numOfWorkers: navigator.hardwareConcurrency || 4,
-        decoder: {
-          readers: [
-            "code_128_reader",
-            "ean_reader",
-            "ean_8_reader",
-            "code_39_reader",
-            "code_39_vin_reader",
-            "codabar_reader",
-            "upc_reader",
-            "upc_e_reader",
-            "i2of5_reader"
-          ],
-          multiple: false
-        },
-        locate: true,
-        frequency: 10
-      }, function(err) {
-        if (err) {
-          console.error('خطأ في تهيئة Quagga:', err);
-          overlay.innerHTML = '<div style="text-align:center"><i class="fas fa-exclamation-triangle" style="font-size:48px;margin-bottom:15px;display:block"></i> خطأ في تشغيل الماسح الضوئي</div>';
-          overlay.style.display = 'flex';
-          if (scanArea) scanArea.classList.remove('scanning');
-          return;
-        }
-        
-        Quagga.start();
-        quaggaProductInitialized = true;
-        console.log('Quagga for products started successfully with improved settings');
-      });
+      // تهيئة ZXing للمنتجات
+      const { BrowserMultiFormatReader } = ZXing;
+      productCodeReader = new BrowserMultiFormatReader();
       
-      Quagga.onDetected(function(result) {
-        if (scanCooldown) return;
-        
-        const code = result.codeResult.code;
-        console.log('تم التعرف على الباركود للمنتج:', code, 'بدقة:', result.codeResult.format);
-        
-        if (!isValidBarcode(code)) {
-          console.log('باركود غير صالح:', code);
-          return;
+      console.log('بدء مسح الباركود للمنتجات باستخدام ZXing...');
+      
+      // بدء مسح الباركود باستخدام ZXing
+      productCodeReader.decodeFromVideoDevice(null, video, (result, err) => {
+        if (result) {
+          // تم العثور على باركود
+          const code = result.text;
+          console.log('تم التعرف على الباركود للمنتج باستخدام ZXing:', code, 'بتنسيق:', result.format);
+          
+          handleProductBarcodeResult(code, scanArea);
         }
         
-        // تفعيل فترة التبريد لمنع المسح المتكرر السريع - 1 ثانية
-        scanCooldown = true;
-        setTimeout(() => {
-          scanCooldown = false;
-        }, 1000); // فترة تجميد 1000 مللي ثانية (1 ثانية)
-        
-        // تغيير لون المستطيل إلى الأخضر للإشارة إلى النجاح
-        if (scanArea) {
-          scanArea.classList.remove('scanning');
-          scanArea.classList.add('success');
+        if (err && !(err instanceof ZXing.NotFoundException)) {
+          console.error('خطأ في ZXing للمنتجات:', err);
         }
-        
-        scannedBarcodeValue = code;
-        const scannedBarcodeInput = document.getElementById('scannedBarcode');
-        if (scannedBarcodeInput) scannedBarcodeInput.value = code;
-        
-        const applyBarcodeBtn = document.getElementById('applyBarcode');
-        if (applyBarcodeBtn) applyBarcodeBtn.disabled = false;
-        
-        showProductBarcodeResult(`تم مسح الباركود: ${code}`, true);
-        
-        // إعادة تعيين المستطيل للاستعداد للمسح التالي
-        setTimeout(() => {
-          if (scanArea) {
-            scanArea.classList.remove('success');
-            scanArea.classList.add('scanning');
-          }
-        }, 500);
       });
       
     } catch (error) {
@@ -2233,6 +2089,47 @@ ${orderItems}
       if (scanArea) scanArea.classList.remove('scanning');
     }
   };
+
+  // دالة معالجة نتيجة الباركود للمنتجات
+  function handleProductBarcodeResult(code, scanArea) {
+    if (scanCooldown) return;
+    
+    console.log('تم التعرف على الباركود للمنتج:', code);
+    
+    if (!isValidBarcode(code)) {
+      console.log('باركود غير صالح:', code);
+      return;
+    }
+    
+    // تفعيل فترة التبريد لمنع المسح المتكرر السريع - 1 ثانية
+    scanCooldown = true;
+    setTimeout(() => {
+      scanCooldown = false;
+    }, 1000); // فترة تجميد 1000 مللي ثانية (1 ثانية)
+    
+    // تغيير لون المستطيل إلى الأخضر للإشارة إلى النجاح
+    if (scanArea) {
+      scanArea.classList.remove('scanning');
+      scanArea.classList.add('success');
+    }
+    
+    scannedBarcodeValue = code;
+    const scannedBarcodeInput = document.getElementById('scannedBarcode');
+    if (scannedBarcodeInput) scannedBarcodeInput.value = code;
+    
+    const applyBarcodeBtn = document.getElementById('applyBarcode');
+    if (applyBarcodeBtn) applyBarcodeBtn.disabled = false;
+    
+    showProductBarcodeResult(`تم مسح الباركود: ${code}`, true);
+    
+    // إعادة تعيين المستطيل للاستعداد للمسح التالي
+    setTimeout(() => {
+      if (scanArea) {
+        scanArea.classList.remove('success');
+        scanArea.classList.add('scanning');
+      }
+    }, 500);
+  }
 
   // دالة تشغيل/إيقاف الفلاش للمنتجات - محسنة لإيقاف الفلاش تلقائياً
   window.toggleProductFlash = async function() {
@@ -2273,6 +2170,12 @@ ${orderItems}
     const scanArea = document.getElementById('productScanArea');
     const applyBtn = document.getElementById('applyBarcode');
     
+    // إيقاف ZXing
+    if (productCodeReader) {
+      productCodeReader.reset();
+      productCodeReader = null;
+    }
+    
     // إيقاف الفلاش تلقائياً إذا كان مفعل
     if (productFlashEnabled && productStream) {
       const videoTrack = productStream.getVideoTracks()[0];
@@ -2294,15 +2197,6 @@ ${orderItems}
     
     if (video && video.srcObject) {
       video.srcObject = null;
-    }
-    
-    if (quaggaProductInitialized) {
-      try {
-        Quagga.stop();
-      } catch (e) {
-        console.log('Quagga للمنتجات لم يكن يعمل عند الإيقاف:', e);
-      }
-      quaggaProductInitialized = false;
     }
     
     if (scanArea) scanArea.classList.remove('scanning', 'success', 'error');
@@ -2444,6 +2338,9 @@ ${orderItems}
     showBarcodeResult(`تم إضافة ${product.name} إلى السلة`, true);
   }
 
+  // باقي الكود يبقى كما هو بدون تغيير...
+  // [يتبع باقي الكود الموجود سابقاً بدون تغيير في دوال Firebase وإدارة البيانات]
+  
   window.showPage = function(s) {
     console.log('🔄 تحويل للصفحة:', s);
     
