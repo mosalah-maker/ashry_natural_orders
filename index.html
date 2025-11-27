@@ -7,9 +7,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- استبدال Quagga بـ ZXing -->
+  <!-- استخدام مكتبة ZXing بدلاً من Quagga -->
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
   <style>
+    /* جميع الأنماط تبقى كما هي */
     :root {
       --p: #1e3c72;
       --s: #2a5298;
@@ -1068,6 +1069,7 @@
 </head>
 <body>
 
+<!-- باقي HTML يبقى كما هو -->
 <div class="sidebar desktop-only">
   <h2>Ashry Natural</h2>
   <a onclick="window.showPage('dashboard')" class="active">الرئيسية</a>
@@ -1451,8 +1453,8 @@
   let connectionTestInterval = null;
   let flashEnabled = false;
   let productFlashEnabled = false;
-  let lastScannedCode = ''; // لتجنب المسح المتكرر لنفس الباركود
-  let scanCooldown = false; // لمنع المسح المتكرر السريع
+  let lastScannedCode = '';
+  let scanCooldown = false;
   
   // متغيرات ZXing
   let codeReader = null;
@@ -2338,8 +2340,8 @@ ${orderItems}
     showBarcodeResult(`تم إضافة ${product.name} إلى السلة`, true);
   }
 
-  // باقي الكود يبقى كما هو بدون تغيير...
-  // [يتبع باقي الكود الموجود سابقاً بدون تغيير في دوال Firebase وإدارة البيانات]
+  // باقي دوال النظام تبقى كما هي بدون تغيير
+  // [يتم وضع باقي الكود هنا كما هو بدون أي تغيير]
   
   window.showPage = function(s) {
     console.log('🔄 تحويل للصفحة:', s);
